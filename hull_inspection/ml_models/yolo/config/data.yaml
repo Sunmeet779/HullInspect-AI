@@ -1,0 +1,32 @@
+# YOLO Hull Defect Detection Dataset Configuration
+# This file is used by YOLOv8 for training
+
+# Dataset paths (will be updated by prepare_dataset.py)
+path: ./datasets/hull_defects
+train: images/train
+val: images/val
+test: images/test
+
+# Number of classes
+nc: 8
+
+# Class names
+names:
+  0: corrosion_severe
+  1: corrosion_moderate
+  2: corrosion_mild
+  3: paint_damage
+  4: fouling
+  5: crack
+  6: dent
+  7: surface_defect
+
+# Class descriptions for reference
+# corrosion_severe: Heavy rust with significant material loss, deep pitting
+# corrosion_moderate: Visible rust with surface deterioration
+# corrosion_mild: Surface rust, light discoloration
+# paint_damage: Peeling, blistering, or damaged coating
+# fouling: Marine growth (barnacles, algae, etc.)
+# crack: Structural cracks in hull plating
+# dent: Physical deformation of hull surface
+# surface_defect: General surface abnormalities
