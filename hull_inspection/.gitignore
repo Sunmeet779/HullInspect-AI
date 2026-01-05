@@ -1,62 +1,46 @@
-# Django
-*.log
-*.pot
-*.pyc
-__pycache__/
-local_settings.py
-db.sqlite3
-*.sqlite3
-
-# Media files (user uploads)
-media/uploads/
-media/annotated/
-media/reports/
-
-# Static files collected
-staticfiles/
-
-# Virtual environment
+# Virtual Environment
 venv/
 env/
 .venv/
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Media files (user uploads)
+media/
+
+# Static files (collected)
+staticfiles/
+
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
-
-# YOLO training outputs
-runs/
-*.pt
-!ml_models/yolo/weights/.gitkeep
-
-# Datasets (too large for git)
-datasets/
 
 # Environment variables
 .env
 .env.local
-.env.production
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Python
-*.egg-info/
-dist/
-build/
-*.egg
+# ML Models (large files)
+*.pt
+*.pth
+*.onnx
+runs/
 
 # Jupyter
 .ipynb_checkpoints/
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-
-# Type checking
-.mypy_cache/

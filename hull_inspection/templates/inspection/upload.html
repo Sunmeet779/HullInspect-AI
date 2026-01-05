@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Hull Image - HullInspect AI{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-bold text-hull-dark mb-4">New Hull Inspection</h1>
+            <p class="text-gray-600 max-w-2xl mx-auto">
+                Upload a high-quality image of the ship hull you want to inspect. 
+                Our AI will analyze it and generate a professional maritime inspection report.
+            </p>
+        </div>
+        
+        <!-- Upload Form -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="p-8">
+                <form id="upload-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <!-- Vessel Name (Optional) -->
+                    <div class="mb-6">
+                        <label for="vessel_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Vessel Name (Optional)
+                        </label>
+                        <input type="text" id="vessel_name" name="vessel_name" 
+                               placeholder="e.g., MV Atlantic Pioneer"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 
+                                      focus:ring-maritime-500 focus:border-maritime-500 transition-colors">
+                    </div>
+                    
+                    <!-- Image Upload Area -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Hull Image <span class="text-red-500">*</span>
+                        </label>
+                        
+                        <div id="drop-zone" 
+                             class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center 
+                                    hover:border-maritime-500 hover:bg-maritime-50/30 transition-all duration-300 
+                                    cursor-pointer relative">
+                            
+                            <!-- Default state -->
+                            <div id="upload-prompt" class="space-y-4">
+                                <div class="flex justify-center">
+                                    <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-lg font-medium text-gray-700">
+                                        Drag and drop your hull image here
+                                    </p>
+                                    <p class="text-sm text-gray-500 mt-1">or click to browse</p>
+                                </div>
+                                <p class="text-xs text-gray-400">
+                                    Supported formats: JPG, PNG, WEBP (Max 20MB)
+                                </p>
+                            </div>
+                            
+                            <!-- Preview state -->
+                            <div id="image-preview" class="hidden">
+                                <img id="preview-image" src="" alt="Preview" class="max-h-64 mx-auto rounded-lg shadow-md">
+                                <p id="file-name" class="mt-4 text-sm text-gray-600"></p>
+                                <button type="button" id="remove-image" 
+                                        class="mt-2 text-red-500 hover:text-red-700 text-sm font-medium">
+                                    Remove Image
+                                </button>
+                            </div>
+                            
+                            <input type="file" id="image-input" name="image" accept="image/*" 
+                                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        </div>
+                    </div>
+                    
+                    <!-- Guidelines -->
+                    <div class="mb-8 bg-maritime-50 rounded-lg p-6">
+                        <h3 class="text-sm font-semibold text-maritime-700 mb-3 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Image Guidelines for Best Results
+                        </h3>
+                        <ul class="text-sm text-maritime-600 space-y-2">
+                            <li class="flex items-start">
+                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                Use high-resolution images for better detection accuracy
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                Ensure good lighting with minimal shadows
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                Capture hull surface from a perpendicular angle
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                Include any suspected defect areas in the frame
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="flex items-center justify-between">
+                        <a href="{% url 'inspection:home' %}" 
+                           class="text-gray-600 hover:text-gray-800 font-medium">
+                            ← Back to Home
+                        </a>
+                        
+                        <button type="submit" id="submit-btn"
+                                class="bg-maritime-600 hover:bg-maritime-700 text-white px-8 py-3 
+                                       rounded-lg font-semibold transition-all duration-300 
+                                       transform hover:scale-105 shadow-lg disabled:opacity-50 
+                                       disabled:cursor-not-allowed disabled:transform-none
+                                       flex items-center space-x-2">
+                            <span id="btn-text">Analyze Hull</span>
+                            <svg id="btn-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                            </svg>
+                            <div id="btn-spinner" class="hidden spinner"></div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Processing Modal -->
+        <div id="processing-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="bg-white rounded-2xl p-10 max-w-md w-full mx-4 text-center shadow-2xl">
+                <div class="spinner mx-auto mb-6" style="width: 60px; height: 60px; border-width: 4px;"></div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing Hull Image</h3>
+                <p class="text-gray-600 mb-4" id="processing-status">Running YOLO detection...</p>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progress-bar" class="bg-maritime-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="mt-6 text-sm text-gray-500">
+                    <p>This may take 15-30 seconds</p>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('upload-form');
+    const dropZone = document.getElementById('drop-zone');
+    const imageInput = document.getElementById('image-input');
+    const uploadPrompt = document.getElementById('upload-prompt');
+    const imagePreview = document.getElementById('image-preview');
+    const previewImage = document.getElementById('preview-image');
+    const fileName = document.getElementById('file-name');
+    const removeBtn = document.getElementById('remove-image');
+    const submitBtn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnIcon = document.getElementById('btn-icon');
+    const btnSpinner = document.getElementById('btn-spinner');
+    const processingModal = document.getElementById('processing-modal');
+    const progressBar = document.getElementById('progress-bar');
+    const processingStatus = document.getElementById('processing-status');
+    
+    // Drag and drop handling
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight() {
+        dropZone.classList.add('border-maritime-500', 'bg-maritime-50');
+    }
+    
+    function unhighlight() {
+        dropZone.classList.remove('border-maritime-500', 'bg-maritime-50');
+    }
+    
+    dropZone.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+    
+    imageInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+    
+    function handleFiles(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file.');
+                return;
+            }
+            
+            if (file.size > 20 * 1024 * 1024) {
+                alert('File size must be less than 20MB.');
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                fileName.textContent = file.name;
+                uploadPrompt.classList.add('hidden');
+                imagePreview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    removeBtn.addEventListener('click', function() {
+        imageInput.value = '';
+        uploadPrompt.classList.remove('hidden');
+        imagePreview.classList.add('hidden');
+    });
+    
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!imageInput.files.length) {
+            alert('Please select an image to analyze.');
+            return;
+        }
+        
+        // Show processing state
+        submitBtn.disabled = true;
+        btnText.textContent = 'Processing...';
+        btnIcon.classList.add('hidden');
+        btnSpinner.classList.remove('hidden');
+        processingModal.classList.remove('hidden');
+        
+        // Simulate progress
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressBar.style.width = progress + '%';
+            
+            if (progress < 30) {
+                processingStatus.textContent = 'Running YOLO detection...';
+            } else if (progress < 60) {
+                processingStatus.textContent = 'Analyzing defects...';
+            } else {
+                processingStatus.textContent = 'Generating inspection report...';
+            }
+        }, 500);
+        
+        // Submit form
+        const formData = new FormData();
+        formData.append('image', imageInput.files[0]);
+        formData.append('vessel_name', document.getElementById('vessel_name').value);
+        
+        try {
+            const response = await fetch('{% url "inspection:api_upload" %}', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            processingStatus.textContent = 'Complete! Redirecting...';
+            
+            if (data.success) {
+                setTimeout(() => {
+                    window.location.href = data.redirect_url;
+                }, 500);
+            } else {
+                throw new Error(data.error || 'Processing failed');
+            }
+            
+        } catch (error) {
+            clearInterval(progressInterval);
+            processingModal.classList.add('hidden');
+            submitBtn.disabled = false;
+            btnText.textContent = 'Analyze Hull';
+            btnIcon.classList.remove('hidden');
+            btnSpinner.classList.add('hidden');
+            
+            alert('Error: ' + error.message);
+        }
+    });
+});
+</script>
+{% endblock %}

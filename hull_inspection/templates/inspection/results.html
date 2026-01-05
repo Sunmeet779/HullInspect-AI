@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}Inspection Results - HullInspect AI{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+            <div>
+                <nav class="text-sm text-gray-500 mb-2">
+                    <a href="{% url 'inspection:home' %}" class="hover:text-maritime-600">Home</a>
+                    <span class="mx-2">/</span>
+                    <a href="{% url 'inspection:history' %}" class="hover:text-maritime-600">History</a>
+                    <span class="mx-2">/</span>
+                    <span class="text-gray-700">Results</span>
+                </nav>
+                <h1 class="text-2xl md:text-3xl font-bold text-hull-dark">Inspection Report</h1>
+                <p class="text-gray-500 mt-1">
+                    {{ inspection.created_at|date:"F d, Y - H:i" }} UTC
+                    {% if inspection.vessel_name %}
+                    <span class="mx-2">•</span>
+                    <span class="font-medium">{{ inspection.vessel_name }}</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="mt-4 md:mt-0 flex items-center space-x-4">
+                <!-- Severity Badge -->
+                <div class="severity-{{ inspection.overall_severity|default:'unknown' }} px-6 py-3 rounded-lg">
+                    <span class="text-sm font-medium uppercase">Overall Condition</span>
+                    <div class="text-xl font-bold">{{ inspection.overall_severity|default:'Pending'|upper }}</div>
+                </div>
+                
+                <!-- Download Button -->
+                <a href="{% url 'inspection:api_download_pdf' inspection.id %}" 
+                   class="bg-maritime-600 hover:bg-maritime-700 text-white px-6 py-3 rounded-lg 
+                          font-medium transition-colors duration-200 flex items-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span>Download PDF</span>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column - Images -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- Detection Summary Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-xl p-4 shadow-md">
+                        <div class="text-3xl font-bold text-maritime-600">{{ inspection.detection_count }}</div>
+                        <div class="text-sm text-gray-500">Defects Found</div>
+                    </div>
+                    
+                    {% for class_name, count in defect_summary.items %}
+                    <div class="bg-white rounded-xl p-4 shadow-md">
+                        <div class="text-2xl font-bold 
+                            {% if 'severe' in class_name %}text-red-500
+                            {% elif 'moderate' in class_name %}text-orange-500
+                            {% elif 'mild' in class_name %}text-yellow-600
+                            {% else %}text-gray-600{% endif %}">{{ count }}</div>
+                        <div class="text-xs text-gray-500 truncate">{{ class_name|title }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="bg-white rounded-xl p-4 shadow-md col-span-3">
+                        <div class="text-green-600 font-medium">No Defects Detected</div>
+                        <div class="text-sm text-gray-500">Hull appears to be in good condition</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Annotated Image -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold text-gray-800">Detection Results</h2>
+                        <div class="flex space-x-2">
+                            <button onclick="showImage('annotated')" 
+                                    class="tab-btn active px-3 py-1 text-sm rounded-lg bg-maritime-100 text-maritime-700">
+                                Annotated
+                            </button>
+                            <button onclick="showImage('original')" 
+                                    class="tab-btn px-3 py-1 text-sm rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">
+                                Original
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        {% if inspection.annotated_image %}
+                        <img id="annotated-img" src="{{ inspection.annotated_image.url }}" 
+                             alt="Annotated Hull Image" class="w-full rounded-lg">
+                        {% endif %}
+                        {% if inspection.original_image %}
+                        <img id="original-img" src="{{ inspection.original_image.url }}" 
+                             alt="Original Hull Image" class="w-full rounded-lg hidden">
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Defect Details Table -->
+                {% if defects %}
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-800">Defect Details</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                {% for defect in defects %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ forloop.counter }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="text-sm font-medium text-gray-900">{{ defect.class_name|title }}</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-20 bg-gray-200 rounded-full h-2 mr-2">
+                                                <div class="bg-maritime-500 h-2 rounded-full" style="width: {{ defect.confidence|floatformat:0 }}%"></div>
+                                            </div>
+                                            <span class="text-sm text-gray-600">{{ defect.confidence|floatformat:1 }}%</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                            {% if defect.severity == 'critical' %}bg-red-100 text-red-800
+                                            {% elif defect.severity == 'severe' %}bg-orange-100 text-orange-800
+                                            {% elif defect.severity == 'moderate' %}bg-yellow-100 text-yellow-800
+                                            {% else %}bg-green-100 text-green-800{% endif %}">
+                                            {{ defect.severity|upper }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        ({{ defect.x_center|floatformat:2 }}, {{ defect.y_center|floatformat:2 }})
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Right Column - Report -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden sticky top-24">
+                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold text-gray-800">Inspection Report</h2>
+                        <button onclick="toggleReportExpand()" class="text-maritime-600 hover:text-maritime-700 text-sm">
+                            <span id="expand-text">Expand</span>
+                        </button>
+                    </div>
+                    <div id="report-container" class="p-4 max-h-[70vh] overflow-y-auto">
+                        {% if inspection.report_html %}
+                        <div class="inspection-report">
+                            {{ inspection.report_html|safe }}
+                        </div>
+                        {% elif inspection.report_content %}
+                        <div class="inspection-report">
+                            <pre class="report-content whitespace-pre-wrap text-sm">{{ inspection.report_content }}</pre>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <p>Report generation in progress...</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- Actions Footer -->
+        <div class="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 pb-8">
+            <a href="{% url 'inspection:upload' %}" 
+               class="text-maritime-600 hover:text-maritime-700 font-medium flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                <span>New Inspection</span>
+            </a>
+            
+            <div class="flex items-center space-x-4">
+                <a href="{% url 'inspection:history' %}" 
+                   class="text-gray-600 hover:text-gray-800 font-medium">
+                    View All Inspections
+                </a>
+                <a href="{% url 'inspection:api_download_pdf' inspection.id %}" 
+                   class="bg-hull-dark hover:bg-gray-800 text-white px-6 py-3 rounded-lg 
+                          font-medium transition-colors duration-200">
+                    Download Full Report
+                </a>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<!-- Expanded Report Modal -->
+<div id="report-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">Full Inspection Report</h2>
+            <button onclick="toggleReportExpand()" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+            {% if inspection.report_content %}
+            <div class="inspection-report">
+                <pre class="report-content whitespace-pre-wrap">{{ inspection.report_content }}</pre>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showImage(type) {
+    const annotatedImg = document.getElementById('annotated-img');
+    const originalImg = document.getElementById('original-img');
+    const buttons = document.querySelectorAll('.tab-btn');
+    
+    buttons.forEach(btn => {
+        btn.classList.remove('active', 'bg-maritime-100', 'text-maritime-700');
+        btn.classList.add('bg-gray-100', 'text-gray-600');
+    });
+    
+    if (type === 'annotated' && annotatedImg) {
+        annotatedImg.classList.remove('hidden');
+        if (originalImg) originalImg.classList.add('hidden');
+        buttons[0].classList.add('active', 'bg-maritime-100', 'text-maritime-700');
+        buttons[0].classList.remove('bg-gray-100', 'text-gray-600');
+    } else if (type === 'original' && originalImg) {
+        originalImg.classList.remove('hidden');
+        if (annotatedImg) annotatedImg.classList.add('hidden');
+        buttons[1].classList.add('active', 'bg-maritime-100', 'text-maritime-700');
+        buttons[1].classList.remove('bg-gray-100', 'text-gray-600');
+    }
+}
+
+function toggleReportExpand() {
+    const modal = document.getElementById('report-modal');
+    const expandText = document.getElementById('expand-text');
+    
+    if (modal.classList.contains('hidden')) {
+        modal.classList.remove('hidden');
+        expandText.textContent = 'Collapse';
+    } else {
+        modal.classList.add('hidden');
+        expandText.textContent = 'Expand';
+    }
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.getElementById('report-modal').classList.add('hidden');
+        document.getElementById('expand-text').textContent = 'Expand';
+    }
+});
+</script>
+{% endblock %}

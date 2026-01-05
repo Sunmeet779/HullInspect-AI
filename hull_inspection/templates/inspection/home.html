@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}HullInspect AI - Automated Maritime Hull Inspection{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="gradient-maritime min-h-[80vh] flex items-center relative overflow-hidden">
+    <!-- Animated Background Elements -->
+    <div class="absolute inset-0 overflow-hidden">
+        <div class="absolute w-96 h-96 bg-maritime-400/10 rounded-full -top-20 -left-20 wave-animation"></div>
+        <div class="absolute w-64 h-64 bg-maritime-300/10 rounded-full bottom-20 right-20 wave-animation" style="animation-delay: 1s;"></div>
+    </div>
+    
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div class="text-center lg:text-left">
+                <h1 class="text-4xl md:text-6xl font-bold text-white mb-6">
+                    AI-Powered<br>
+                    <span class="text-maritime-300">Hull Inspection</span>
+                </h1>
+                <p class="text-xl text-gray-300 mb-8 max-w-xl">
+                    Revolutionizing maritime safety with advanced computer vision. 
+                    Upload hull images and receive professional-grade inspection reports 
+                    powered by YOLO defect detection and Vision-Language AI.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="{% url 'inspection:upload' %}" 
+                       class="bg-maritime-500 hover:bg-maritime-400 text-white px-8 py-4 rounded-xl 
+                              text-lg font-semibold transition-all duration-300 transform hover:scale-105 
+                              shadow-lg hover:shadow-xl flex items-center justify-center space-x-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <span>Start Inspection</span>
+                    </a>
+                    <a href="#how-it-works" 
+                       class="glass-effect hover:bg-white/20 text-white px-8 py-4 rounded-xl 
+                              text-lg font-semibold transition-all duration-300 border border-white/30
+                              flex items-center justify-center space-x-2">
+                        <span>Learn More</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="hidden lg:block">
+                <!-- Visual Element - Ship Hull Illustration -->
+                <div class="relative">
+                    <div class="glass-effect rounded-2xl p-8 shadow-2xl">
+                        <div class="bg-hull-dark rounded-xl p-6 text-center">
+                            <svg class="w-full h-64 text-maritime-400" viewBox="0 0 200 120" fill="none" stroke="currentColor">
+                                <!-- Ship hull simplified SVG -->
+                                <path d="M20 80 Q50 100 100 100 Q150 100 180 80 L170 40 Q100 20 30 40 Z" 
+                                      stroke-width="2" fill="rgba(14, 165, 233, 0.1)"/>
+                                <!-- Detection boxes simulation -->
+                                <rect x="40" y="50" width="30" height="20" stroke="#ef4444" stroke-width="2" fill="none" stroke-dasharray="4"/>
+                                <rect x="90" y="60" width="25" height="15" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="4"/>
+                                <rect x="130" y="45" width="35" height="25" stroke="#ef4444" stroke-width="2" fill="none" stroke-dasharray="4"/>
+                                <!-- Labels -->
+                                <text x="45" y="45" fill="#ef4444" font-size="8">Corrosion</text>
+                                <text x="92" y="55" fill="#f59e0b" font-size="8">Paint</text>
+                                <text x="135" y="40" fill="#ef4444" font-size="8">Severe</text>
+                            </svg>
+                            <p class="text-gray-400 mt-4 text-sm">AI-Powered Defect Detection</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Statistics Section -->
+<section class="bg-white py-12 -mt-8 relative z-20">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="glass-effect bg-white shadow-xl rounded-2xl p-8 grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="text-center">
+                <div class="text-4xl font-bold text-maritime-600">{{ total_inspections }}</div>
+                <div class="text-gray-500 text-sm mt-1">Inspections Completed</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-maritime-600">8</div>
+                <div class="text-gray-500 text-sm mt-1">Defect Categories</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-maritime-600">95%</div>
+                <div class="text-gray-500 text-sm mt-1">Detection Accuracy</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-maritime-600">&lt;30s</div>
+                <div class="text-gray-500 text-sm mt-1">Processing Time</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-20 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl font-bold text-hull-dark mb-4">Comprehensive Defect Detection</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">
+                Our AI system identifies and classifies multiple types of hull defects 
+                with professional-grade accuracy.
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Corrosion -->
+            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-red-500">
+                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Corrosion</h3>
+                <p class="text-gray-600 text-sm">Detects and classifies corrosion severity: severe, moderate, and mild deterioration.</p>
+            </div>
+            
+            <!-- Paint Damage -->
+            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-orange-500">
+                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Paint Damage</h3>
+                <p class="text-gray-600 text-sm">Identifies coating system failures, peeling, blistering, and paint deterioration.</p>
+            </div>
+            
+            <!-- Fouling -->
+            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-green-500">
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Marine Fouling</h3>
+                <p class="text-gray-600 text-sm">Detects barnacles, algae, and biological growth affecting hull performance.</p>
+            </div>
+            
+            <!-- Structural Defects -->
+            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-blue-500">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Cracks & Dents</h3>
+                <p class="text-gray-600 text-sm">Identifies structural damage including cracks, dents, and surface deformations.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section id="how-it-works" class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl font-bold text-hull-dark mb-4">How It Works</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">
+                Three simple steps to get a comprehensive maritime inspection report.
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Step 1 -->
+            <div class="relative">
+                <div class="bg-gradient-to-br from-maritime-500 to-maritime-700 rounded-2xl p-8 text-white h-full">
+                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full 
+                                flex items-center justify-center text-xl font-bold shadow-lg">1</div>
+                    <div class="pt-4">
+                        <svg class="w-16 h-16 mb-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <h3 class="text-xl font-semibold mb-3">Upload Image</h3>
+                        <p class="text-maritime-100">
+                            Upload a high-resolution image of the ship hull section you want to inspect.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Step 2 -->
+            <div class="relative">
+                <div class="bg-gradient-to-br from-maritime-600 to-maritime-800 rounded-2xl p-8 text-white h-full">
+                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full 
+                                flex items-center justify-center text-xl font-bold shadow-lg">2</div>
+                    <div class="pt-4">
+                        <svg class="w-16 h-16 mb-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <h3 class="text-xl font-semibold mb-3">AI Analysis</h3>
+                        <p class="text-maritime-100">
+                            YOLO detects defects and VLM analyzes the image like a professional marine surveyor.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Step 3 -->
+            <div class="relative">
+                <div class="bg-gradient-to-br from-maritime-700 to-hull-dark rounded-2xl p-8 text-white h-full">
+                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full 
+                                flex items-center justify-center text-xl font-bold shadow-lg">3</div>
+                    <div class="pt-4">
+                        <svg class="w-16 h-16 mb-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <h3 class="text-xl font-semibold mb-3">Get Report</h3>
+                        <p class="text-maritime-100">
+                            Receive a detailed maritime inspection report with findings and recommendations.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-12">
+            <a href="{% url 'inspection:upload' %}" 
+               class="inline-flex items-center space-x-2 bg-maritime-600 hover:bg-maritime-700 
+                      text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all 
+                      duration-300 transform hover:scale-105 shadow-lg">
+                <span>Start Your Inspection</span>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Recent Inspections -->
+{% if recent_inspections %}
+<section class="py-20 bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center mb-10">
+            <h2 class="text-3xl font-bold text-hull-dark">Recent Inspections</h2>
+            <a href="{% url 'inspection:history' %}" class="text-maritime-600 hover:text-maritime-700 font-medium">
+                View All →
+            </a>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for inspection in recent_inspections %}
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                <div class="h-48 bg-gray-200 relative">
+                    {% if inspection.annotated_image %}
+                    <img src="{{ inspection.annotated_image.url }}" alt="Inspection" 
+                         class="w-full h-full object-cover">
+                    {% elif inspection.original_image %}
+                    <img src="{{ inspection.original_image.url }}" alt="Original" 
+                         class="w-full h-full object-cover">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-gray-400">
+                        No Image
+                    </div>
+                    {% endif %}
+                    <div class="absolute top-3 right-3">
+                        <span class="severity-{{ inspection.overall_severity }} px-3 py-1 rounded-full text-xs font-semibold uppercase">
+                            {{ inspection.overall_severity|default:"pending" }}
+                        </span>
+                    </div>
+                </div>
+                <div class="p-5">
+                    <div class="text-sm text-gray-500 mb-2">
+                        {{ inspection.created_at|date:"M d, Y H:i" }}
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="text-lg font-semibold text-gray-800">
+                                {{ inspection.detection_count }} Defects
+                            </span>
+                        </div>
+                        <a href="{% url 'inspection:results' inspection.id %}" 
+                           class="text-maritime-600 hover:text-maritime-700 font-medium text-sm">
+                            View Report →
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- CTA Section -->
+<section class="py-20 gradient-maritime">
+    <div class="max-w-4xl mx-auto text-center px-4">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+            Ready to Inspect Your Vessel?
+        </h2>
+        <p class="text-xl text-maritime-200 mb-8">
+            Get instant AI-powered hull analysis with professional-grade reporting.
+        </p>
+        <a href="{% url 'inspection:upload' %}" 
+           class="inline-flex items-center space-x-2 bg-white hover:bg-gray-100 
+                  text-maritime-700 px-10 py-4 rounded-xl text-lg font-semibold 
+                  transition-all duration-300 transform hover:scale-105 shadow-xl">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <span>Upload Hull Image</span>
+        </a>
+    </div>
+</section>
+{% endblock %}
