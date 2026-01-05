@@ -1,0 +1,62 @@
+# Hull Inspection System - Python Requirements
+# Django Web Application + YOLO + VLM
+
+# ===========================================
+# Core Django Dependencies
+# ===========================================
+Django>=4.2,<5.0
+Pillow>=10.0.0
+python-decouple>=3.8
+
+# ===========================================
+# YOLO / Computer Vision
+# ===========================================
+ultralytics>=8.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+PyYAML>=6.0
+
+# ===========================================
+# Vision-Language Model (VLM)
+# ===========================================
+transformers>=4.36.0
+torch>=2.0.0
+accelerate>=0.25.0
+einops>=0.7.0
+
+# ===========================================
+# PDF Report Generation
+# ===========================================
+reportlab>=4.0.0
+weasyprint>=60.0  # Alternative PDF generator
+
+# ===========================================
+# Image Processing
+# ===========================================
+scikit-image>=0.21.0
+
+# ===========================================
+# Development / Testing
+# ===========================================
+pytest>=7.4.0
+pytest-django>=4.5.0
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
+
+# ===========================================
+# Production Server
+# ===========================================
+gunicorn>=21.0.0
+whitenoise>=6.6.0
+
+# ===========================================
+# Optional: Async Task Queue (for production)
+# ===========================================
+# celery>=5.3.0
+# redis>=5.0.0
+
+# ===========================================
+# Optional: Database (for production)
+# ===========================================
+# psycopg2-binary>=2.9.9  # PostgreSQL

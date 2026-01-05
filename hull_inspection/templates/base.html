@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Maritime Hull Inspection System{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'maritime': {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        'hull': {
+                            rust: '#8B4513',
+                            steel: '#71797E',
+                            dark: '#1a365d',
+                        }
+                    },
+                    fontFamily: {
+                        'maritime': ['Georgia', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom Styles -->
+    <style>
+        .gradient-maritime {
+            background: linear-gradient(135deg, #0c4a6e 0%, #1e3a5f 50%, #0ea5e9 100%);
+        }
+        
+        .gradient-hull {
+            background: linear-gradient(180deg, #1a365d 0%, #2d3748 100%);
+        }
+        
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .wave-animation {
+            animation: wave 3s ease-in-out infinite;
+        }
+        
+        @keyframes wave {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .severity-critical { background: #fed7d7; color: #c53030; border-left: 4px solid #c53030; }
+        .severity-severe { background: #feebc8; color: #c05621; border-left: 4px solid #c05621; }
+        .severity-moderate { background: #fefcbf; color: #975a16; border-left: 4px solid #975a16; }
+        .severity-mild { background: #c6f6d5; color: #276749; border-left: 4px solid #276749; }
+        .severity-good { background: #9ae6b4; color: #22543d; border-left: 4px solid #22543d; }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0ea5e9;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Report styling */
+        .inspection-report {
+            font-family: 'Courier New', monospace;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        
+        .report-content {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .report-section {
+            color: #1a365d;
+            font-weight: bold;
+            margin-top: 20px;
+            border-bottom: 1px solid #2c5282;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="gradient-hull shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="{% url 'inspection:home' %}" class="flex items-center space-x-3">
+                        <!-- Ship Icon -->
+                        <svg class="w-10 h-10 text-maritime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 11h6"/>
+                        </svg>
+                        <span class="text-white text-xl font-bold tracking-wide">
+                            HullInspect<span class="text-maritime-400">AI</span>
+                        </span>
+                    </a>
+                </div>
+                
+                <div class="flex items-center space-x-6">
+                    <a href="{% url 'inspection:home' %}" 
+                       class="text-gray-300 hover:text-white transition-colors duration-200">
+                        Home
+                    </a>
+                    <a href="{% url 'inspection:upload' %}" 
+                       class="text-gray-300 hover:text-white transition-colors duration-200">
+                        New Inspection
+                    </a>
+                    <a href="{% url 'inspection:history' %}" 
+                       class="text-gray-300 hover:text-white transition-colors duration-200">
+                        History
+                    </a>
+                    <a href="{% url 'inspection:upload' %}" 
+                       class="bg-maritime-500 hover:bg-maritime-600 text-white px-4 py-2 rounded-lg 
+                              transition-all duration-200 transform hover:scale-105 shadow-md">
+                        Start Inspection
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="gradient-hull text-white mt-auto">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-maritime-400">HullInspect AI</h3>
+                    <p class="text-gray-400 text-sm">
+                        AI-powered maritime hull inspection system using advanced 
+                        computer vision for automated defect detection and professional 
+                        survey report generation.
+                    </p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-maritime-400">Quick Links</h3>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="{% url 'inspection:upload' %}" class="hover:text-white transition">New Inspection</a></li>
+                        <li><a href="{% url 'inspection:history' %}" class="hover:text-white transition">Inspection History</a></li>
+                        <li><a href="#" class="hover:text-white transition">Documentation</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-4 text-maritime-400">Technology</h3>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li>YOLOv8 Object Detection</li>
+                        <li>Vision-Language Models</li>
+                        <li>Django Web Framework</li>
+                        <li>Maritime Survey Standards</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-500 text-sm">
+                <p>&copy; 2024 HullInspect AI. Research Project - Maritime Inspection Automation.</p>
+            </div>
+        </div>
+    </footer>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
