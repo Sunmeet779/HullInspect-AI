@@ -1,0 +1,62 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+*.sqlite3
+
+# Media files (user uploads)
+media/uploads/
+media/annotated/
+media/reports/
+
+# Static files collected
+staticfiles/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# YOLO training outputs
+runs/
+*.pt
+!ml_models/yolo/weights/.gitkeep
+
+# Datasets (too large for git)
+datasets/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Type checking
+.mypy_cache/
