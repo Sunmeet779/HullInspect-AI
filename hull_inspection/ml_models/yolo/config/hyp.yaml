@@ -1,0 +1,36 @@
+# YOLO Hull Defect Detection - Training Hyperparameters
+# Optimized for maritime hull inspection images
+
+# Training hyperparameters
+lr0: 0.01                # Initial learning rate
+lrf: 0.01                # Final learning rate (lr0 * lrf)
+momentum: 0.937          # SGD momentum/Adam beta1
+weight_decay: 0.0005     # Optimizer weight decay
+warmup_epochs: 3.0       # Warmup epochs
+warmup_momentum: 0.8     # Warmup initial momentum
+warmup_bias_lr: 0.1      # Warmup initial bias lr
+box: 7.5                 # Box loss gain
+cls: 0.5                 # Cls loss gain
+dfl: 1.5                 # DFL loss gain
+
+# Augmentation hyperparameters (optimized for hull images)
+hsv_h: 0.015             # HSV-Hue augmentation (fraction)
+hsv_s: 0.7               # HSV-Saturation augmentation (fraction)
+hsv_v: 0.4               # HSV-Value augmentation (fraction)
+degrees: 0.0             # Rotation (+/- deg) - disabled for hull images
+translate: 0.1           # Translation (+/- fraction)
+scale: 0.5               # Scale (+/- gain)
+shear: 0.0               # Shear (+/- deg) - disabled for hull images
+perspective: 0.0         # Perspective (+/- fraction) - disabled
+flipud: 0.0              # Flip up-down (probability) - disabled for hull images
+fliplr: 0.5              # Flip left-right (probability)
+mosaic: 1.0              # Mosaic augmentation (probability)
+mixup: 0.1               # Mixup augmentation (probability)
+copy_paste: 0.1          # Copy-paste augmentation (probability)
+
+# Notes on augmentation choices:
+# - No rotation/shear/perspective: Hull images are typically taken from 
+#   consistent angles, and these transforms could create unrealistic images
+# - Strong color augmentation: Lighting conditions in dry docks vary significantly
+# - Mosaic enabled: Helps model learn to detect defects at various scales
+# - Low mixup: Prevents blending of different defect types too aggressively
