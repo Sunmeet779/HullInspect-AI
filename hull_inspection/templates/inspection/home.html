@@ -75,8 +75,8 @@
 
 <!-- Statistics Section -->
 <section class="bg-white py-12 -mt-8 relative z-20">
-    <div class="max-w-6xl mx-auto px-4">
-        <div class="glass-effect bg-white shadow-xl rounded-2xl p-8 grid grid-cols-2 md:grid-cols-4 gap-6">
+    <div class="max-w-4xl mx-auto px-4">
+        <div class="glass-effect bg-white shadow-xl rounded-2xl p-8 grid grid-cols-2 gap-6">
             <div class="text-center">
                 <div class="text-4xl font-bold text-maritime-600">{{ total_inspections }}</div>
                 <div class="text-gray-500 text-sm mt-1">Inspections Completed</div>
@@ -101,7 +101,7 @@
             </p>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Corrosion -->
             <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-red-500">
                 <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
@@ -138,17 +138,6 @@
                 <p class="text-gray-600 text-sm">Detects barnacles, algae, and biological growth affecting hull performance.</p>
             </div>
             
-            <!-- Structural Defects -->
-            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-blue-500">
-                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Cracks & Dents</h3>
-                <p class="text-gray-600 text-sm">Identifies structural damage including cracks, dents, and surface deformations.</p>
-            </div>
         </div>
     </div>
 </section>
