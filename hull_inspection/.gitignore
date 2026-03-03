@@ -10,17 +10,9 @@ __pycache__/
 *.so
 .Python
 
-# Django
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Media files (user uploads)
-media/
-
-# Static files (collected)
-staticfiles/
+# OS
+.DS_Store
+Thumbs.db
 
 # IDE
 .idea/
@@ -28,19 +20,39 @@ staticfiles/
 *.swp
 *.swo
 
-# Environment variables
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables (tokens, secrets)
 .env
 .env.local
 
-# OS
-.DS_Store
-Thumbs.db
+# Augmented dataset (regenerable from original + augment script)
+datasets/hull_defects_augmented/
 
-# ML Models (large files)
-*.pt
-*.pth
-*.onnx
-runs/
+# Media — generated / user-uploaded content (not source code)
+media/reports/
+media/uploads/*
+!media/uploads/hull_images/
+media/uploads/hull_images/*
+!media/uploads/hull_images/020eb284-*
+!media/uploads/hull_images/3f6bb75a-*
+!media/uploads/hull_images/335202b8-*
+!media/uploads/hull_images/38ec3c40-*
+!media/uploads/annotated/
+media/uploads/annotated/*
+!media/uploads/annotated/020eb284-*
+!media/uploads/annotated/3f6bb75a-*
+!media/uploads/annotated/335202b8-*
+!media/uploads/annotated/38ec3c40-*
+media/annotated/
 
-# Jupyter
-.ipynb_checkpoints/
+# Database journal (runtime temp file)
+db.sqlite3-journal
+
+# Training checkpoints (only keep best/last weights)
+runs/*/weights/epoch*.pt
+runs/*/*/weights/epoch*.pt
+
+# Temp debug scripts
+_check_*.py
