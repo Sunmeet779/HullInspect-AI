@@ -1,0 +1,424 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Survey Assistant — HullInspect AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Chat container ─────────────────────────── */
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 64px - 1px);   /* full height minus nav */
+        max-height: calc(100vh - 64px);
+        overflow: hidden;
+    }
+
+    /* ── Messages area ──────────────────────────── */
+    .messages-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+        scroll-behavior: smooth;
+    }
+    .messages-area::-webkit-scrollbar { width: 6px; }
+    .messages-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    /* ── Bubbles ────────────────────────────────── */
+    .bubble-row { display: flex; margin-bottom: 1rem; align-items: flex-end; gap: 0.5rem; }
+    .bubble-row.user { justify-content: flex-end; }
+    .bubble-row.assistant { justify-content: flex-start; }
+
+    .bubble {
+        max-width: 75%;
+        padding: 0.85rem 1.15rem;
+        border-radius: 1.1rem;
+        line-height: 1.55;
+        font-size: 0.95rem;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+    .bubble.user {
+        background: linear-gradient(135deg, #0369a1, #0ea5e9);
+        color: #fff;
+        border-bottom-right-radius: 0.3rem;
+    }
+    .bubble.assistant {
+        background: #f1f5f9;
+        color: #1e293b;
+        border: 1px solid #e2e8f0;
+        border-bottom-left-radius: 0.3rem;
+    }
+
+    /* ── Avatar ─────────────────────────────────── */
+    .avatar {
+        width: 34px; height: 34px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+    .avatar.bot  { background: #0c4a6e; color: #7dd3fc; }
+    .avatar.user { background: #0ea5e9; color: #fff; }
+
+    /* ── Typing indicator ───────────────────────── */
+    .typing-indicator .dot {
+        display: inline-block;
+        width: 7px; height: 7px;
+        background: #94a3b8;
+        border-radius: 50%;
+        margin: 0 2px;
+        animation: typeBounce 1.4s infinite ease-in-out;
+    }
+    .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typeBounce {
+        0%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-6px); }
+    }
+
+    /* ── Input bar ──────────────────────────────── */
+    .input-bar {
+        border-top: 1px solid #e2e8f0;
+        background: #fff;
+        padding: 0.75rem 1rem;
+    }
+    .input-bar textarea {
+        resize: none;
+        min-height: 44px;
+        max-height: 120px;
+        overflow-y: auto;
+        field-sizing: content;       /* modern browsers auto-grow */
+    }
+
+    /* ── Suggestion chips ───────────────────────── */
+    .chip {
+        display: inline-block;
+        padding: 0.4rem 0.9rem;
+        border-radius: 9999px;
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #475569;
+    }
+    .chip:hover {
+        background: #0ea5e9;
+        color: #fff;
+        border-color: #0ea5e9;
+        transform: translateY(-1px);
+    }
+
+    /* ── Sidebar ────────────────────────────────── */
+    .sidebar-info {
+        background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+        border-left: 1px solid #e2e8f0;
+    }
+
+    /* markdown-ish formatting in assistant responses */
+    .bubble.assistant strong { font-weight: 700; }
+    .bubble.assistant em { font-style: italic; }
+    .bubble.assistant code {
+        background: #e2e8f0;
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+        font-size: 0.88em;
+    }
+
+    /* responsive */
+    @media (max-width: 768px) {
+        .bubble { max-width: 90%; }
+        .sidebar-info { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container flex flex-row">
+
+    <!-- ═══ Main chat panel ═══ -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+        <!-- Header bar -->
+        <div class="bg-white border-b border-gray-200 px-5 py-3 flex items-center gap-3 shrink-0">
+            <div class="bg-maritime-900 text-maritime-400 w-10 h-10 rounded-full flex items-center justify-center text-lg">
+                🤖
+            </div>
+            <div>
+                <h1 class="text-lg font-semibold text-gray-800">AI Survey Assistant</h1>
+                <p class="text-xs text-gray-500">
+                    Powered by Phi-3 Mini &middot;
+                    {% if ollama_available %}
+                        <span class="text-green-600 font-medium">● Online</span>
+                    {% else %}
+                        <span class="text-red-500 font-medium">● Offline — run <code>ollama serve</code></span>
+                    {% endif %}
+                    &middot; {{ total_inspections }} inspection{{ total_inspections|pluralize }} in database
+                </p>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="messages-area" id="messagesArea">
+
+            <!-- Welcome message -->
+            <div class="bubble-row assistant">
+                <div class="avatar bot">🚢</div>
+                <div class="bubble assistant">
+                    <strong>Welcome, Surveyor!</strong>
+
+I'm your AI inspection assistant. I have access to <strong>{{ total_inspections }} completed inspection{{ total_inspections|pluralize }}</strong> in the database.
+
+Ask me about vessel conditions, defect summaries, severity comparisons, or maintenance recommendations.
+                </div>
+            </div>
+
+            <!-- Suggestion chips -->
+            {% if suggestions %}
+            <div class="flex flex-wrap gap-2 mt-3 mb-4 ml-12" id="suggestionsRow">
+                {% for s in suggestions %}
+                <span class="chip" onclick="sendSuggestion(this)">{{ s }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Input bar -->
+        <div class="input-bar shrink-0">
+            <form id="chatForm" class="flex items-end gap-3" onsubmit="return handleSend(event)">
+                <textarea
+                    id="chatInput"
+                    class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-maritime-400 focus:border-transparent
+                           placeholder-gray-400"
+                    placeholder="Ask about any vessel or inspection..."
+                    rows="1"
+                    autofocus
+                ></textarea>
+                <button
+                    type="submit"
+                    id="sendBtn"
+                    class="bg-maritime-600 hover:bg-maritime-700 text-white rounded-xl px-5 py-2.5
+                           transition-all duration-200 flex items-center gap-2 text-sm font-medium
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span>Send</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    </svg>
+                </button>
+            </form>
+            <p class="text-[11px] text-gray-400 mt-1.5 ml-1">
+                Phi-3 Mini running locally via Ollama &middot; Responses based on stored inspection data only
+            </p>
+        </div>
+    </div>
+
+    <!-- ═══ Right sidebar — quick stats ═══ -->
+    <div class="sidebar-info w-72 hidden lg:flex flex-col p-5 overflow-y-auto shrink-0">
+        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">Inspection Overview</h2>
+
+        <div class="space-y-3 text-sm">
+            <div class="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+                <p class="text-gray-500 text-xs">Total Inspections</p>
+                <p class="text-2xl font-bold text-maritime-700">{{ total_inspections }}</p>
+            </div>
+        </div>
+
+        <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mt-6 mb-3">Example Questions</h2>
+        <ul class="space-y-2 text-sm text-gray-600">
+            <li class="cursor-pointer hover:text-maritime-600 transition" onclick="sendText('Give me an overview of all inspections')">
+                📊 Overview of all inspections
+            </li>
+            <li class="cursor-pointer hover:text-maritime-600 transition" onclick="sendText('Which vessel needs urgent repair?')">
+                🔴 Which vessel needs urgent repair?
+            </li>
+            <li class="cursor-pointer hover:text-maritime-600 transition" onclick="sendText('Compare severity across all vessels')">
+                ⚖️ Compare vessel severities
+            </li>
+            <li class="cursor-pointer hover:text-maritime-600 transition" onclick="sendText('What maintenance do you recommend?')">
+                🔧 Maintenance recommendations
+            </li>
+            <li class="cursor-pointer hover:text-maritime-600 transition" onclick="sendText('Show corrosion statistics')">
+                📈 Corrosion statistics
+            </li>
+        </ul>
+
+        <div class="mt-auto pt-6">
+            <div class="bg-maritime-50 rounded-lg p-3 border border-maritime-200 text-xs text-maritime-800">
+                <strong>🔒 Privacy</strong><br>
+                All processing happens locally on your machine.
+                No data is sent to external servers.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const messagesArea  = document.getElementById('messagesArea');
+const chatInput     = document.getElementById('chatInput');
+const sendBtn       = document.getElementById('sendBtn');
+const suggestionsRow = document.getElementById('suggestionsRow');
+const chatForm      = document.getElementById('chatForm');
+
+// Conversation history for multi-turn context
+let conversationHistory = [];
+
+/* ── Helpers ───────────────────────────────────── */
+
+function scrollToBottom() {
+    requestAnimationFrame(() => {
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatResponse(text) {
+    // Bold: **text**
+    let out = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Italic: *text*
+    out = out.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Inline code: `text`
+    out = out.replace(/`(.*?)`/g, '<code>$1</code>');
+    // Headings: ### text → bold
+    out = out.replace(/^###?\s+(.+)$/gm, '<strong>$1</strong>');
+    return out;
+}
+
+function addMessage(role, text) {
+    const row = document.createElement('div');
+    row.className = `bubble-row ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = `avatar ${role === 'assistant' ? 'bot' : 'user'}`;
+    avatar.textContent = role === 'assistant' ? '🚢' : '👤';
+
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${role}`;
+
+    if (role === 'assistant') {
+        bubble.innerHTML = formatResponse(text);
+    } else {
+        bubble.textContent = text;
+    }
+
+    if (role === 'user') {
+        row.appendChild(bubble);
+        row.appendChild(avatar);
+    } else {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+    }
+
+    messagesArea.appendChild(row);
+    scrollToBottom();
+}
+
+function showTyping() {
+    const row = document.createElement('div');
+    row.className = 'bubble-row assistant';
+    row.id = 'typingRow';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar bot';
+    avatar.textContent = '🚢';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble assistant typing-indicator';
+    bubble.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messagesArea.appendChild(row);
+    scrollToBottom();
+}
+
+function hideTyping() {
+    const el = document.getElementById('typingRow');
+    if (el) el.remove();
+}
+
+function setInputEnabled(enabled) {
+    chatInput.disabled = !enabled;
+    sendBtn.disabled = !enabled;
+    if (enabled) chatInput.focus();
+}
+
+/* ── Send message ──────────────────────────────── */
+
+async function sendMessage(text) {
+    if (!text.trim()) return;
+
+    // Hide suggestions after first message
+    if (suggestionsRow) suggestionsRow.style.display = 'none';
+
+    addMessage('user', text);
+    conversationHistory.push({ role: 'user', content: text });
+
+    setInputEnabled(false);
+    showTyping();
+
+    try {
+        const resp = await fetch("{% url 'inspection:api_chat' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: text,
+                history: conversationHistory.slice(-10),
+            }),
+        });
+
+        const data = await resp.json();
+        hideTyping();
+
+        const reply = data.reply || 'No response received.';
+        addMessage('assistant', reply);
+        conversationHistory.push({ role: 'assistant', content: reply });
+
+    } catch (err) {
+        hideTyping();
+        addMessage('assistant', 'Connection error. Is the server running?');
+    }
+
+    setInputEnabled(true);
+}
+
+function handleSend(e) {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    sendMessage(text);
+    return false;
+}
+
+function sendSuggestion(el) {
+    sendMessage(el.textContent.trim());
+}
+function sendText(text) {
+    sendMessage(text);
+}
+
+/* ── Keyboard shortcut: Enter to send, Shift+Enter for newline ── */
+chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend(e);
+    }
+});
+
+/* ── Auto-grow textarea ──────────────────────── */
+chatInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+</script>
+{% endblock %}

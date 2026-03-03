@@ -20,9 +20,19 @@
                 <p class="text-gray-500 mt-1">
                     {{ inspection.created_at|date:"F d, Y - H:i" }} UTC
                     {% if inspection.vessel_name %}
-                    <span class="mx-2">•</span>
+                    <span class="mx-2">&bull;</span>
                     <span class="font-medium">{{ inspection.vessel_name }}</span>
                     {% endif %}
+                    <span class="mx-2">&bull;</span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {% if inspection.detection_method == 'eigen_tree' %}bg-green-100 text-green-800
+                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                        {% if inspection.detection_method == 'eigen_tree' %}
+                            🌳 Eigen Tree (Unsupervised)
+                        {% else %}
+                            🔍 YOLO Segmentation (Deep Learning)
+                        {% endif %}
+                    </span>
                 </p>
             </div>
             <div class="mt-4 md:mt-0 flex items-center space-x-4">
