@@ -1,131 +1,133 @@
 """
 Vision-Language Model (VLM) Service for Maritime Inspection Reports
 
-This service uses a free VLM (Moondream2) to generate professional
-maritime inspection reports based on YOLO detections and the hull image.
+This service supports multiple backends:
+- BLIP (Bootstrapping Language-Image Pre-training) - runs locally
+- Ollama with LLaVA - runs locally, free, better quality
+
+Ollama is recommended for students - free, local, no API key needed.
 """
+# Disable MPS BEFORE importing torch to avoid device conflicts
 import os
+os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
 import base64
+import requests
+import json
 from typing import Dict, List, Tuple, Optional
 from PIL import Image
 import io
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
 
 
 class VLMReportGenerator:
     """
     Service for generating maritime inspection reports using VLM.
     
-    Uses Moondream2 - a lightweight, free, and efficient vision-language model
-    that can run locally without requiring expensive GPU resources.
+    Supports multiple backends:
+    - 'github': GitHub Models API (GPT-4o-mini) — recommended, free with GitHub account
+    - 'ollama': Ollama with LLaVA (local, free)
+    - 'blip': BLIP model from HuggingFace (runs locally)
+    
+    Usage with GitHub Models (recommended):
+        1. Get token: https://github.com/settings/tokens
+        2. Add to .env: GITHUB_TOKEN=ghp_...
+        3. Use: generator = VLMReportGenerator(backend='github')
+    
+    Usage with Ollama:
+        1. Install Ollama: brew install ollama
+        2. Pull the model: ollama pull llava
+        3. Start Ollama: ollama serve
+        4. Use: generator = VLMReportGenerator(backend='ollama')
     """
     
     # Maritime surveyor prompt template
     SYSTEM_PROMPT = """You are an experienced Class A Marine Surveyor with over 20 years of experience 
 in vessel hull inspections. You are conducting a detailed visual inspection of a ship's hull 
-and must provide a professional maritime inspection report.
-
-Your expertise includes:
-- Hull structural integrity assessment
-- Corrosion classification (severe, moderate, mild)
-- Marine growth and fouling evaluation
-- Paint system condition assessment
-- Identification of cracks, dents, and surface defects
-- IMO and classification society standards compliance
-
-You must write reports in a formal, technical, and professional tone appropriate for 
-insurance underwriters, ship owners, and classification societies."""
+and must provide a professional maritime inspection report."""
     
-    REPORT_TEMPLATE = """Based on the hull image provided and the YOLO detection results below, 
-generate a comprehensive maritime inspection report.
+    OLLAMA_INSPECTION_PROMPT = """You are an experienced Class A Marine Surveyor inspecting a ship's hull.
+Analyze this image and provide:
+1. Overall condition description
+2. Types of defects visible (corrosion, cracks, paint damage, marine growth, etc.)
+3. Severity assessment (critical, severe, moderate, mild, or good)
+4. Specific observations about each defect area
+5. Recommended actions
 
-=== YOLO DETECTION RESULTS ===
-{detection_summary}
+Be detailed and professional in your assessment."""
 
-=== DETAILED DETECTIONS ===
-{detection_details}
+    ANALYSIS_QUESTIONS = [
+        "Describe the condition of this ship hull in detail, including any visible damage, corrosion, or defects.",
+        "What types of defects or damage can you see on this hull surface?",
+        "Rate the overall condition of this hull section: critical, severe, moderate, mild, or good.",
+    ]
 
-Please generate a complete inspection report with the following sections:
-
-1. **GENERAL DESCRIPTION**
-   - Hull section type and location estimate
-   - Environmental context (dry dock, waterline, underwater, etc.)
-   - Visible structural elements
-   - Overall visual condition assessment
-
-2. **YOLO DETECTION SUMMARY**
-   - List all detected defects with confidence scores
-   - Highlight critical/severe findings
-   - Note any patterns in defect distribution
-
-3. **CONDITION ASSESSMENT**
-   - Detailed analysis of each defect type found
-   - Severity classification with justification
-   - Cross-verification: Do visual observations match YOLO detections?
-   - Note any potential defects YOLO may have missed
-   - Structural implications of findings
-
-4. **SURROUNDINGS & SAFETY CONTEXT**
-   - Environmental factors affecting hull condition
-   - Safety considerations for crew and vessel operation
-   - Factors that may accelerate deterioration
-
-5. **INSPECTION NOTES**
-   - Key observations in surveyor-style bullet points
-   - Confidence-based priority ranking
-   - Areas requiring closer examination
-
-6. **SUMMARY & RECOMMENDATIONS**
-   - Overall severity level: [CRITICAL / SEVERE / MODERATE / MILD / GOOD]
-   - Recommended maintenance actions with priority
-   - Timeline recommendations for repairs
-   - Classification society notification requirements (if any)
-
-7. **MODEL AGREEMENT NOTE**
-   - Assessment of YOLO model accuracy based on visual inspection
-   - Any discrepancies between AI detection and professional judgment
-   - Recommendations for model improvement
-
-Format the report professionally with clear section headers and structured content."""
-
-    def __init__(self, model_name: str = "vikhyatk/moondream2"):
+    def __init__(
+        self, 
+        model_name: str = "Salesforce/blip-image-captioning-large",
+        backend: str = "github",
+        ollama_model: str = "llava",
+        ollama_url: str = "http://localhost:11434",
+        github_token: str = None,
+        github_model: str = None,
+        github_endpoint: str = None,
+    ):
         """
         Initialize the VLM service.
         
         Args:
-            model_name: HuggingFace model name for the VLM
+            model_name: HuggingFace model name for BLIP backend
+            backend: 'github' (recommended), 'ollama', or 'blip'
+            ollama_model: Ollama model name (default: 'llava')
+            ollama_url: Ollama API URL (default: http://localhost:11434)
+            github_token: GitHub PAT for Models API (loaded from .env if None)
+            github_model: GitHub Models model name (loaded from .env if None)
+            github_endpoint: GitHub Models endpoint URL (loaded from .env if None)
         """
         self.model_name = model_name
+        self.backend = backend
+        self.ollama_model = ollama_model
+        self.ollama_url = ollama_url
         self.model = None
-        self.tokenizer = None
         self.processor = None
         self._initialized = False
+        self.device = "cpu"  # Always use CPU for Mac compatibility
+        
+        # GitHub Models config (from args or .env)
+        self.github_token = github_token or os.environ.get('GITHUB_TOKEN', '')
+        self.github_model = github_model or os.environ.get('GITHUB_MODELS_MODEL', 'gpt-4o-mini')
+        self.github_endpoint = github_endpoint or os.environ.get('GITHUB_MODELS_ENDPOINT', 'https://models.inference.ai.azure.com')
         
     def _initialize_model(self):
-        """Load the VLM model and processor."""
+        """Load the BLIP model and processor."""
         if self._initialized:
             return
             
         try:
             import torch
-            from transformers import AutoModelForCausalLM, AutoTokenizer
+            # Force CPU for all operations
+            torch.set_default_tensor_type(torch.FloatTensor)
+            
+            from transformers import BlipProcessor, BlipForConditionalGeneration
             
             print(f"Loading VLM model: {self.model_name}")
+            print(f"Using device: {self.device}")
             
-            # Load Moondream2 model
-            self.model = AutoModelForCausalLM.from_pretrained(
+            # Load BLIP model - explicitly on CPU
+            self.processor = BlipProcessor.from_pretrained(self.model_name)
+            self.model = BlipForConditionalGeneration.from_pretrained(
                 self.model_name,
-                trust_remote_code=True,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto" if torch.cuda.is_available() else None
-            )
+                torch_dtype=torch.float32
+            ).to(self.device)
             
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name,
-                trust_remote_code=True
-            )
+            self.model.eval()  # Set to evaluation mode
             
             self._initialized = True
-            print("VLM model loaded successfully")
+            print(f"VLM model loaded successfully on {self.device}")
             
         except ImportError as e:
             raise ImportError(
@@ -137,6 +139,356 @@ Format the report professionally with clear section headers and structured conte
             print("Falling back to template-based report generation")
             self._initialized = False
     
+    def _check_ollama_available(self) -> bool:
+        """Check if Ollama is running and the model is available."""
+        try:
+            response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
+            if response.status_code == 200:
+                models = response.json().get('models', [])
+                model_names = [m.get('name', '').split(':')[0] for m in models]
+                if self.ollama_model.split(':')[0] in model_names:
+                    return True
+                print(f"Ollama model '{self.ollama_model}' not found. Available: {model_names}")
+                print(f"Run: ollama pull {self.ollama_model}")
+                return False
+            return False
+        except requests.exceptions.ConnectionError:
+            print("Ollama not running. Start it with: ollama serve")
+            return False
+        except Exception as e:
+            print(f"Error checking Ollama: {e}")
+            return False
+    
+    def _encode_image_base64(self, image_path: str) -> str:
+        """Encode image to base64 for API calls."""
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode('utf-8')
+
+    # ── GitHub Models backend ─────────────────────────────────────────
+
+    def _generate_github_models_report(
+        self,
+        image_path: str,
+        detection_summary: str,
+        detection_details: str,
+        overall_severity: str
+    ) -> str:
+        """
+        Generate report using GitHub Models API (GPT-4o-mini / GPT-4o).
+
+        Sends the hull image + detection data to the model for analysis.
+        Falls back to template if API call fails.
+        """
+        print(f"   📡 Calling GitHub Models API ({self.github_model})...")
+
+        # Encode image for vision
+        image_b64 = self._encode_image_base64(image_path)
+        ext = os.path.splitext(image_path)[1].lower().lstrip('.')
+        mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'bmp': 'bmp'}.get(ext, 'jpeg')
+
+        # Build the prompt
+        system_msg = (
+            "You are an experienced Class A Marine Surveyor with over 20 years of "
+            "experience in vessel hull inspections. You write professional, detailed "
+            "maritime inspection reports. Use formal technical language. Structure your "
+            "response clearly with numbered sections."
+        )
+
+        user_prompt = f"""Analyze this hull inspection image and the automated detection results below.
+Write a professional maritime hull inspection report.
+
+AUTOMATED DETECTION RESULTS:
+{detection_summary}
+
+DETAILED DEFECT DATA:
+{detection_details}
+
+ASSESSED SEVERITY: {overall_severity.upper()}
+
+Write your report with these sections:
+1. VISUAL ANALYSIS - What you observe in the image (surface condition, colour patterns, visible damage)
+2. DEFECT ASSESSMENT - Interpret each detected defect, its likely cause, and progression risk
+3. STRUCTURAL IMPLICATIONS - What these defects mean for hull integrity
+4. RECOMMENDATIONS - Specific repair/maintenance actions with priority timelines
+
+Be specific, professional, and reference the detection data. Keep the total response under 800 words."""
+
+        # Call GitHub Models API (OpenAI-compatible)
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.github_token}",
+        }
+
+        payload = {
+            "model": self.github_model,
+            "messages": [
+                {"role": "system", "content": system_msg},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/{mime};base64,{image_b64}",
+                                "detail": "high",
+                            },
+                        },
+                        {"type": "text", "text": user_prompt},
+                    ],
+                },
+            ],
+            "temperature": 0.3,
+            "max_tokens": 2000,
+        }
+
+        try:
+            response = requests.post(
+                f"{self.github_endpoint}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60,
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                ai_analysis = result["choices"][0]["message"]["content"]
+                print(f"   ✅ GitHub Models response received ({len(ai_analysis)} chars)")
+            elif response.status_code == 401:
+                print("   ❌ GitHub token invalid or expired. Regenerate at github.com/settings/tokens")
+                return self._generate_template_report(detection_summary, detection_details, overall_severity)
+            elif response.status_code == 429:
+                print("   ❌ Rate limit exceeded. Try again later or switch to gpt-4o-mini")
+                return self._generate_template_report(detection_summary, detection_details, overall_severity)
+            else:
+                print(f"   ❌ API error {response.status_code}: {response.text[:200]}")
+                return self._generate_template_report(detection_summary, detection_details, overall_severity)
+
+        except requests.exceptions.Timeout:
+            print("   ❌ GitHub Models request timed out")
+            return self._generate_template_report(detection_summary, detection_details, overall_severity)
+        except Exception as e:
+            print(f"   ❌ GitHub Models error: {e}")
+            return self._generate_template_report(detection_summary, detection_details, overall_severity)
+
+        # Build final report combining AI analysis with structured data
+        report = f"""
+================================================================================
+                    MARITIME HULL INSPECTION REPORT
+================================================================================
+
+Document ID: AUTO-GENERATED
+Date: {self._get_current_date()}
+Inspector: AI-Assisted Analysis System (GitHub Models {self.github_model})
+Classification: PRELIMINARY
+
+================================================================================
+1. AI VISUAL ANALYSIS ({self.github_model.upper()})
+================================================================================
+
+{ai_analysis}
+
+================================================================================
+2. AUTOMATED DETECTION SUMMARY
+================================================================================
+
+{detection_summary}
+
+================================================================================
+3. DETAILED DETECTION DATA
+================================================================================
+
+{detection_details}
+
+================================================================================
+4. CONDITION ASSESSMENT
+================================================================================
+
+Overall Severity Level: **{overall_severity.upper()}**
+
+{self._get_severity_description(overall_severity)}
+
+================================================================================
+5. INSPECTION NOTES
+================================================================================
+
+• AI Vision Model: {self.github_model} (via GitHub Models API)
+• Detection Engine: YOLO / Eigen Tree (automated corrosion segmentation)
+• The AI model analysed both the image and detection data
+• Final assessment should be verified by qualified marine surveyor
+
+================================================================================
+                              END OF REPORT
+================================================================================
+"""
+        return report
+
+    # ── Ollama backend ────────────────────────────────────────────────
+
+    def _generate_ollama_report(
+        self,
+        image_path: str,
+        detection_summary: str,
+        detection_details: str,
+        overall_severity: str
+    ) -> str:
+        """Generate report using Ollama with LLaVA or similar vision model."""
+        
+        # Encode image
+        image_base64 = self._encode_image_base64(image_path)
+        
+        # Build context with YOLO detections
+        context = f"""
+Based on automated YOLO detection, the following defects were found:
+{detection_summary}
+
+Detected severity level: {overall_severity}
+
+Now analyze the image and provide your expert maritime surveyor assessment.
+"""
+        
+        prompt = f"{self.OLLAMA_INSPECTION_PROMPT}\n\nContext from automated detection:\n{context}"
+        
+        # Call Ollama API
+        try:
+            response = requests.post(
+                f"{self.ollama_url}/api/generate",
+                json={
+                    "model": self.ollama_model,
+                    "prompt": prompt,
+                    "images": [image_base64],
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.3,
+                        "num_predict": 1500
+                    }
+                },
+                timeout=120  # Vision models can be slow
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                vlm_analysis = result.get('response', 'Analysis not available')
+            else:
+                print(f"Ollama API error: {response.status_code}")
+                vlm_analysis = "VLM analysis unavailable - API error"
+                
+        except requests.exceptions.Timeout:
+            print("Ollama request timed out")
+            vlm_analysis = "VLM analysis unavailable - timeout"
+        except Exception as e:
+            print(f"Ollama error: {e}")
+            vlm_analysis = f"VLM analysis unavailable - {e}"
+        
+        # Build the full report
+        report = self._build_ollama_report(
+            vlm_analysis,
+            detection_summary,
+            detection_details,
+            overall_severity
+        )
+        
+        return report
+    
+    def _build_ollama_report(
+        self,
+        vlm_analysis: str,
+        detection_summary: str,
+        detection_details: str,
+        overall_severity: str
+    ) -> str:
+        """Build comprehensive report from Ollama VLM analysis."""
+        
+        report = f"""
+================================================================================
+                    MARITIME HULL INSPECTION REPORT
+================================================================================
+
+Document ID: AUTO-GENERATED
+Date: {self._get_current_date()}
+Inspector: AI-Assisted Analysis System (Ollama LLaVA + YOLO)
+Classification: PRELIMINARY
+
+================================================================================
+1. VLM VISUAL ANALYSIS (Ollama {self.ollama_model})
+================================================================================
+
+{vlm_analysis}
+
+================================================================================
+2. YOLO DETECTION SUMMARY
+================================================================================
+
+{detection_summary}
+
+================================================================================
+3. DETAILED DETECTION ANALYSIS
+================================================================================
+
+{detection_details}
+
+================================================================================
+4. CONDITION ASSESSMENT
+================================================================================
+
+Overall Severity Level: **{overall_severity.upper()}**
+
+{self._get_severity_description(overall_severity)}
+
+Cross-Verification Notes:
+- VLM (Ollama) provides detailed contextual analysis
+- YOLO provides precise defect localization with confidence scores
+- Combined analysis offers comprehensive assessment
+- Final assessment should be verified by qualified marine surveyor
+
+================================================================================
+5. SURROUNDINGS & SAFETY CONTEXT
+================================================================================
+
+Environmental Factors:
+- Corrosion progression depends on operational environment
+- Marine growth indicates extended waterline exposure
+- Paint damage accelerates underlying corrosion
+
+Safety Considerations:
+- Severe corrosion may compromise structural integrity
+- Cracks require immediate attention for vessel safety
+- Proper ventilation required during any repair work
+
+================================================================================
+6. INSPECTION NOTES
+================================================================================
+
+• VLM Analysis: Ollama ({self.ollama_model})
+• Object Detection: YOLOv8 trained on maritime corrosion data
+• Detection confidence levels indicate AI model certainty
+• Multiple defect types in proximity suggest systemic maintenance issues
+• Periodic re-inspection recommended based on severity findings
+
+================================================================================
+7. SUMMARY & RECOMMENDATIONS
+================================================================================
+
+Overall Assessment: {overall_severity.upper()}
+
+{self._get_recommendations(overall_severity)}
+
+================================================================================
+8. MODEL AGREEMENT NOTE
+================================================================================
+
+This report combines two AI analysis methods:
+1. Ollama Vision-Language Model ({self.ollama_model}): Provides detailed analysis and context
+2. YOLO Object Detection: Identifies and localizes specific defects
+
+The VLM provides rich qualitative analysis while YOLO provides
+precise quantitative detection with bounding boxes and confidence scores.
+
+================================================================================
+                              END OF REPORT
+================================================================================
+"""
+        return report
+
     def generate_report(
         self,
         image_path: str,
@@ -163,14 +515,57 @@ Format the report professionally with clear section headers and structured conte
         
         if use_vlm:
             try:
-                self._initialize_model()
-                if self._initialized:
-                    report_text = self._generate_vlm_report(
-                        image_path, 
-                        detection_summary,
-                        detection_details
-                    )
+                # GitHub Models backend (recommended — free, cloud)
+                if self.backend == "github":
+                    if self.github_token:
+                        report_text = self._generate_github_models_report(
+                            image_path,
+                            detection_summary,
+                            detection_details,
+                            overall_severity
+                        )
+                    else:
+                        print("GitHub token not set, falling back to template")
+                        print("Set GITHUB_TOKEN in .env file")
+                        report_text = self._generate_template_report(
+                            detection_summary,
+                            detection_details,
+                            overall_severity
+                        )
+                # Ollama backend (local)
+                elif self.backend == "ollama":
+                    if self._check_ollama_available():
+                        report_text = self._generate_ollama_report(
+                            image_path,
+                            detection_summary,
+                            detection_details,
+                            overall_severity
+                        )
+                    else:
+                        print("Ollama not available, falling back to template")
+                        report_text = self._generate_template_report(
+                            detection_summary,
+                            detection_details,
+                            overall_severity
+                        )
+                # BLIP backend
+                elif self.backend == "blip":
+                    self._initialize_model()
+                    if self._initialized:
+                        report_text = self._generate_vlm_report(
+                            image_path, 
+                            detection_summary,
+                            detection_details,
+                            overall_severity
+                        )
+                    else:
+                        report_text = self._generate_template_report(
+                            detection_summary,
+                            detection_details,
+                            overall_severity
+                        )
                 else:
+                    print(f"Unknown backend: {self.backend}, using template")
                     report_text = self._generate_template_report(
                         detection_summary,
                         detection_details,
@@ -199,37 +594,169 @@ Format the report professionally with clear section headers and structured conte
         self,
         image_path: str,
         detection_summary: str,
-        detection_details: str
+        detection_details: str,
+        overall_severity: str
     ) -> str:
-        """Generate report using VLM."""
+        """Generate report using BLIP VLM."""
         import torch
         from PIL import Image
         
-        # Load and process image
+        # Load image
         image = Image.open(image_path).convert('RGB')
         
-        # Create prompt
-        prompt = self.REPORT_TEMPLATE.format(
-            detection_summary=detection_summary,
-            detection_details=detection_details
+        # Generate multiple captions/analyses
+        analyses = []
+        
+        with torch.no_grad():
+            for question in self.ANALYSIS_QUESTIONS:
+                # Prepare inputs
+                prompt = f"Question: {question} Answer:"
+                inputs = self.processor(image, prompt, return_tensors="pt").to(self.device)
+                
+                # Generate
+                output = self.model.generate(
+                    **inputs,
+                    max_new_tokens=150,
+                    num_beams=3,
+                    early_stopping=True
+                )
+                
+                # Decode
+                answer = self.processor.decode(output[0], skip_special_tokens=True)
+                analyses.append(answer)
+        
+        # Also get a general caption
+        inputs = self.processor(image, return_tensors="pt").to(self.device)
+        caption_output = self.model.generate(**inputs, max_new_tokens=100)
+        general_caption = self.processor.decode(caption_output[0], skip_special_tokens=True)
+        
+        # Build the report combining VLM analysis with YOLO detections
+        report = self._build_combined_report(
+            general_caption,
+            analyses,
+            detection_summary,
+            detection_details,
+            overall_severity
         )
         
-        # Generate using Moondream2
-        enc_image = self.model.encode_image(image)
-        
-        # Add system context
-        full_prompt = f"{self.SYSTEM_PROMPT}\n\n{prompt}"
-        
-        # Generate response
-        response = self.model.answer_question(
-            enc_image,
-            full_prompt,
-            self.tokenizer,
-            max_new_tokens=2048
-        )
-        
-        return response
+        return report
     
+    def _build_combined_report(
+        self,
+        caption: str,
+        analyses: List[str],
+        detection_summary: str,
+        detection_details: str,
+        overall_severity: str
+    ) -> str:
+        """Build a comprehensive report combining VLM and YOLO results."""
+        
+        report = f"""
+================================================================================
+                    MARITIME HULL INSPECTION REPORT
+================================================================================
+
+Document ID: AUTO-GENERATED
+Date: {self._get_current_date()}
+Inspector: AI-Assisted Analysis System (BLIP + YOLO)
+Classification: PRELIMINARY
+
+================================================================================
+1. VISUAL ANALYSIS (AI Vision Model)
+================================================================================
+
+General Image Description:
+{caption}
+
+Detailed Hull Condition Analysis:
+{analyses[0] if len(analyses) > 0 else 'Analysis not available'}
+
+Defect Types Identified:
+{analyses[1] if len(analyses) > 1 else 'Analysis not available'}
+
+Condition Rating Assessment:
+{analyses[2] if len(analyses) > 2 else 'Analysis not available'}
+
+================================================================================
+2. YOLO DETECTION SUMMARY
+================================================================================
+
+{detection_summary}
+
+================================================================================
+3. DETAILED DETECTION ANALYSIS
+================================================================================
+
+{detection_details}
+
+================================================================================
+4. CONDITION ASSESSMENT
+================================================================================
+
+Overall Severity Level: **{overall_severity.upper()}**
+
+{self._get_severity_description(overall_severity)}
+
+Cross-Verification Notes:
+- AI vision analysis and YOLO detections have been combined
+- High-confidence detections (>85%) are likely accurate
+- Visual analysis provides contextual understanding
+- Final assessment should be verified by qualified marine surveyor
+
+================================================================================
+5. SURROUNDINGS & SAFETY CONTEXT
+================================================================================
+
+Environmental Factors:
+- Corrosion progression depends on operational environment
+- Marine growth indicates extended waterline exposure
+- Paint damage accelerates underlying corrosion
+
+Safety Considerations:
+- Severe corrosion may compromise structural integrity
+- Cracks require immediate attention for vessel safety
+- Proper ventilation required during any repair work
+
+================================================================================
+6. INSPECTION NOTES
+================================================================================
+
+• AI Vision Model: BLIP (Salesforce)
+• Object Detection: YOLOv8 trained on maritime corrosion data
+• Detection confidence levels indicate AI model certainty
+• Multiple defect types in proximity suggest systemic maintenance issues
+• Periodic re-inspection recommended based on severity findings
+
+================================================================================
+7. SUMMARY & RECOMMENDATIONS
+================================================================================
+
+Overall Assessment: {overall_severity.upper()}
+
+{self._get_recommendations(overall_severity)}
+
+================================================================================
+8. MODEL AGREEMENT NOTE
+================================================================================
+
+This report combines two AI analysis methods:
+1. BLIP Vision-Language Model: Provides visual description and context
+2. YOLO Object Detection: Identifies and localizes specific defects
+
+The combination provides both qualitative analysis (what the image shows)
+and quantitative detection (specific defects with locations and confidence).
+
+AI Detection Accuracy Notes:
+- Visual analysis may identify conditions not detected by YOLO
+- YOLO provides precise localization of trained defect classes
+- Human expert review recommended for final assessment
+
+================================================================================
+                              END OF REPORT
+================================================================================
+"""
+        return report
+
     def _generate_template_report(
         self,
         detection_summary: str,
@@ -578,7 +1105,16 @@ REPAIR PRIORITY: ROUTINE MAINTENANCE
 
 # For testing
 if __name__ == '__main__':
-    generator = VLMReportGenerator()
+    # Example usage with Ollama (recommended - free, local)
+    # First install: brew install ollama
+    # Then pull model: ollama pull llava
+    # Start server: ollama serve
+    
+    # Use Ollama backend (default)
+    generator = VLMReportGenerator(backend='ollama')
+    
+    # Or use BLIP backend
+    # generator = VLMReportGenerator(backend='blip')
     
     test_detections = [
         {
@@ -606,7 +1142,7 @@ if __name__ == '__main__':
     report, html, severity = generator.generate_report(
         "/path/to/test/image.jpg",
         test_detections,
-        use_vlm=False  # Test template mode
+        use_vlm=True  # Use VLM (Ollama)
     )
     
     print(report)

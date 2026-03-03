@@ -40,6 +40,12 @@ class InspectionReport(models.Model):
         ('mild', 'Mild'),
         ('good', 'Good Condition'),
     ]
+
+    # Detection method choices
+    METHOD_CHOICES = [
+        ('yolo_seg', 'YOLO Segmentation (Deep Learning)'),
+        ('eigen_tree', 'Eigen Tree (Unsupervised)'),
+    ]
     
     # Basic info
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -67,6 +73,11 @@ class InspectionReport(models.Model):
     # Report file (PDF)
     report_pdf = models.FileField(upload_to='reports/', null=True, blank=True)
     
+    # Detection method used
+    detection_method = models.CharField(
+        max_length=20, choices=METHOD_CHOICES, default='yolo_seg'
+    )
+
     # Metadata
     vessel_name = models.CharField(max_length=200, null=True, blank=True)
     inspector_notes = models.TextField(null=True, blank=True)
