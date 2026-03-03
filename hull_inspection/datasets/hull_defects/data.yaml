@@ -1,0 +1,14 @@
+names:
+  0: corrosion_severe
+  1: corrosion_moderate
+  2: corrosion_mild
+  3: paint_damage
+  4: fouling
+  5: crack
+  6: dent
+  7: surface_defect
+nc: 8
+path: /Users/sunmeetkohli/inspection report/research-project/hull_inspection/datasets/hull_defects
+test: images/test
+train: images/train
+val: images/val
