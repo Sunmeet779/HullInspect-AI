@@ -1,0 +1,6 @@
+names:
+  0: corrosion
+nc: 1
+path: /Users/sunmeetkohli/inspection report/research-project/hull_inspection/datasets/hull_defects_seg
+train: images/train
+val: images/val
