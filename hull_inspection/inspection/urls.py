@@ -19,4 +19,8 @@ urlpatterns = [
     
     # History
     path('history/', views.HistoryView.as_view(), name='history'),
+    
+    # Chatbot
+    path('chat/', views.ChatView.as_view(), name='chat'),
+    path('api/chat/', views.api_chat, name='api_chat'),
 ]

@@ -1,0 +1,22 @@
+# YOLO11-Seg Hull Corrosion Segmentation Dataset Configuration
+# This file is used by YOLO11-seg for instance segmentation training
+#
+# KEY DIFFERENCE from the detection config:
+# - Single class "corrosion" (dataset only labels corrosion)
+# - Labels are polygon format (not bounding boxes)
+# - Used with YOLO11n-seg model
+
+# Dataset paths (will be updated by prepare_dataset_seg.py)
+path: ./datasets/hull_defects_seg
+train: images/train
+val: images/val
+
+# Number of classes — SINGLE CLASS
+# The MaVeCoDD dataset labels corrosion only.
+# Previous 8-class setup was based on heuristic color classification
+# which introduced label noise. Single-class is more accurate.
+nc: 1
+
+# Class names
+names:
+  0: corrosion

@@ -11,9 +11,18 @@ import json
 import os
 
 from .models import InspectionReport, DefectAnnotation
-from .services.yolo_inference import YOLOInferenceService
-from .services.vlm_service import VLMReportGenerator
+# Use segmentation-based services (v2) for better corrosion detection
+try:
+    from .services.yolo_seg_inference import YOLOSegInferenceService as YOLOInferenceService
+except ImportError:
+    from .services.yolo_inference import YOLOInferenceService
+try:
+    from .services.vlm_service_v2 import VLMReportGenerator
+except ImportError:
+    from .services.vlm_service import VLMReportGenerator
 from .services.report_generator import PDFReportGenerator
+from .services.eigen_tree_service import EigenTreeCorrosionDetector
+from .services.chatbot_service import InspectionChatbot
 
 
 class HomeView(TemplateView):
@@ -77,11 +86,15 @@ def api_upload_image(request):
         
         image_file = request.FILES['image']
         vessel_name = request.POST.get('vessel_name', '')
+        detection_method = request.POST.get('detection_method', 'yolo_seg')
+        if detection_method not in ('yolo_seg', 'eigen_tree'):
+            detection_method = 'yolo_seg'
         
         # Create inspection record
         inspection = InspectionReport.objects.create(
             original_image=image_file,
             vessel_name=vessel_name,
+            detection_method=detection_method,
             status='processing'
         )
         
@@ -148,15 +161,20 @@ def process_inspection(inspection: InspectionReport):
     """
     image_path = inspection.original_image.path
     
-    # Step 1: YOLO Detection
-    yolo_service = YOLOInferenceService()
-    detections, annotated_image_path = yolo_service.detect(image_path)
+    # Step 1: Run detection based on selected method
+    method = getattr(inspection, 'detection_method', 'yolo_seg')
+    if method == 'eigen_tree':
+        detector = EigenTreeCorrosionDetector(max_depth=7, prune=True)
+        detections, annotated_image_path = detector.detect(image_path)
+    else:
+        yolo_service = YOLOInferenceService()
+        detections, annotated_image_path = yolo_service.detect(image_path)
     
-    # Store detections
+    # Store detections (includes mask area data)
     inspection.yolo_detections = detections
     inspection.detection_count = len(detections)
     
-    # Save annotated image
+    # Save annotated image (now with segmentation mask overlays)
     if annotated_image_path:
         from django.core.files import File
         with open(annotated_image_path, 'rb') as f:
@@ -179,7 +197,7 @@ def process_inspection(inspection: InspectionReport):
             severity=det.get('severity')
         )
     
-    # Step 2: Generate VLM Report
+    # Step 2: Generate VLM Report (v2 — segmentation-aware)
     vlm_service = VLMReportGenerator()
     report_content, report_html, severity = vlm_service.generate_report(
         image_path=image_path,
@@ -195,3 +213,52 @@ def process_inspection(inspection: InspectionReport):
     inspection.save()
     
     return inspection
+
+
+# ── Chatbot views ─────────────────────────────────────────────────────
+
+class ChatView(TemplateView):
+    """Chatbot page."""
+    template_name = 'inspection/chat.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        chatbot = InspectionChatbot()
+        context['ollama_available'] = chatbot.check_available()
+        context['suggestions'] = chatbot.get_suggested_questions()
+        context['total_inspections'] = InspectionReport.objects.filter(
+            status='completed'
+        ).count()
+        return context
+
+
+@csrf_exempt
+@require_POST
+def api_chat(request):
+    """
+    AJAX endpoint for chatbot messages.
+
+    Expects JSON: {"message": "...", "history": [...]}
+    Returns JSON: {"reply": "...", "status": "ok"|"error"}
+    """
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"reply": "Invalid request.", "status": "error"}, status=400)
+
+    user_message = body.get("message", "").strip()
+    history = body.get("history", [])
+
+    if not user_message:
+        return JsonResponse({"reply": "Please enter a message.", "status": "error"})
+
+    chatbot = InspectionChatbot()
+
+    if not chatbot.check_available():
+        return JsonResponse({
+            "reply": "The Ollama server is not running. Please start it with `ollama serve` and ensure the phi3:mini model is pulled.",
+            "status": "error",
+        })
+
+    reply = chatbot.chat(user_message, conversation_history=history)
+    return JsonResponse({"reply": reply, "status": "ok"})

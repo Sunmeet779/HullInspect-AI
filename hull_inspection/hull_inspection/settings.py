@@ -92,12 +92,29 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # =============================================================================
+# =============================================================================
 # YOLO & ML Configuration
 # =============================================================================
+# Segmentation model (preferred — YOLO11-Seg)
+YOLO_SEG_MODEL_PATH = BASE_DIR / 'ml_models' / 'yolo' / 'weights' / 'best_seg.pt'
+YOLO_SEG_RUNS_PATH = BASE_DIR / 'runs' / 'segment'
+
+# Legacy detection model (fallback)
 YOLO_MODEL_PATH = BASE_DIR / 'ml_models' / 'yolo' / 'weights' / 'best.pt'
+YOLO_RUNS_PATH = BASE_DIR / 'runs' / 'detect'
+
 YOLO_CONFIG_PATH = BASE_DIR / 'ml_models' / 'yolo' / 'config'
 
-# Defect classes for YOLO training
+# Dataset paths
+YOLO_SEG_DATASET_PATH = BASE_DIR / 'datasets' / 'hull_defects_seg'
+YOLO_DATASET_PATH = BASE_DIR / 'datasets' / 'hull_defects'
+
+# Corrosion class (single class for segmentation — matches the actual dataset)
+SEG_CLASSES = {
+    0: 'corrosion',
+}
+
+# Legacy 8-class mapping (kept for backward compatibility)
 DEFECT_CLASSES = {
     0: 'corrosion_severe',
     1: 'corrosion_moderate', 
@@ -109,9 +126,19 @@ DEFECT_CLASSES = {
     7: 'surface_defect',
 }
 
-# VLM Configuration (Moondream - free, local)
-VLM_MODEL_NAME = 'vikhyatk/moondream2'
-VLM_REVISION = '2025-01-09'  # Use latest stable
+# =============================================================================
+# VLM Configuration
+# =============================================================================
+# Ollama backend (recommended for Mac M1 — free, local, no API key)
+# Install: brew install ollama
+# Models (pick one):
+#   ollama pull minicpm-v     (3B, RECOMMENDED, best quality/speed ratio)
+#   ollama pull llava          (7B, good quality)
+#   ollama pull moondream      (1.8B, lightest)
+VLM_BACKEND = 'ollama'
+VLM_OLLAMA_URL = 'http://localhost:11434'
+# Model auto-detected from installed Ollama models; set to override:
+VLM_OLLAMA_MODEL = None  # None = auto-detect best available
 
 # Report Configuration
 REPORT_OUTPUT_DIR = MEDIA_ROOT / 'reports'

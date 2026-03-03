@@ -11,7 +11,7 @@ python-decouple>=3.8
 # ===========================================
 # YOLO / Computer Vision
 # ===========================================
-ultralytics>=8.0.0
+ultralytics>=8.1.0      # YOLO11-Seg support
 opencv-python>=4.8.0
 numpy>=1.24.0
 PyYAML>=6.0
@@ -23,6 +23,8 @@ transformers>=4.36.0
 torch>=2.0.0
 accelerate>=0.25.0
 einops>=0.7.0
+python-dotenv>=1.0.0    # Load .env for API tokens
+requests>=2.31.0        # API calls to GitHub Models
 
 # ===========================================
 # PDF Report Generation
