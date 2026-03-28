@@ -4,195 +4,220 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Maritime Hull Inspection System{% endblock %}</title>
-    
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Custom Tailwind Config -->
+
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         'maritime': {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            300: '#7dd3fc',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                            900: '#0c4a6e',
+                            50:'#f0f9ff',100:'#e0f2fe',200:'#bae6fd',300:'#7dd3fc',
+                            400:'#38bdf8',500:'#0ea5e9',600:'#0284c7',700:'#0369a1',
+                            800:'#075985',900:'#0c4a6e',950:'#082f49',
                         },
-                        'hull': {
-                            rust: '#8B4513',
-                            steel: '#71797E',
-                            dark: '#1a365d',
-                        }
+                        'hull': { rust:'#8B4513', steel:'#71797E', dark:'#0f172a', deep:'#1e293b' },
                     },
                     fontFamily: {
-                        'maritime': ['Georgia', 'serif'],
-                    }
+                        'sans': ['Inter','system-ui','-apple-system','sans-serif'],
+                        'mono': ['JetBrains Mono','monospace'],
+                    },
                 }
             }
         }
     </script>
-    
-    <!-- Custom Styles -->
+
     <style>
-        .gradient-maritime {
-            background: linear-gradient(135deg, #0c4a6e 0%, #1e3a5f 50%, #0ea5e9 100%);
-        }
-        
-        .gradient-hull {
-            background: linear-gradient(180deg, #1a365d 0%, #2d3748 100%);
-        }
-        
-        .glass-effect {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .wave-animation {
-            animation: wave 3s ease-in-out infinite;
-        }
-        
-        @keyframes wave {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        .severity-critical { background: #fed7d7; color: #c53030; border-left: 4px solid #c53030; }
-        .severity-severe { background: #feebc8; color: #c05621; border-left: 4px solid #c05621; }
-        .severity-moderate { background: #fefcbf; color: #975a16; border-left: 4px solid #975a16; }
-        .severity-mild { background: #c6f6d5; color: #276749; border-left: 4px solid #276749; }
-        .severity-good { background: #9ae6b4; color: #22543d; border-left: 4px solid #22543d; }
-        
-        /* Loading spinner */
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #0ea5e9;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Report styling */
-        .inspection-report {
-            font-family: 'Courier New', monospace;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-        }
-        
-        .report-content {
-            white-space: pre-wrap;
-            line-height: 1.6;
-            padding: 20px;
-        }
-        
-        .report-section {
-            color: #1a365d;
-            font-weight: bold;
-            margin-top: 20px;
-            border-bottom: 1px solid #2c5282;
-        }
+        *{font-family:'Inter',system-ui,-apple-system,sans-serif}
+        html{scroll-behavior:smooth}
+
+        .gradient-maritime{background:linear-gradient(135deg,#082f49 0%,#0c4a6e 40%,#0369a1 100%)}
+        .gradient-hull{background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%)}
+
+        .glass-effect{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+        .glass-white{backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);background:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.5)}
+
+        .severity-critical{background:#fef2f2;color:#991b1b;border-left:4px solid #dc2626}
+        .severity-severe{background:#fff7ed;color:#9a3412;border-left:4px solid #ea580c}
+        .severity-moderate{background:#fefce8;color:#854d0e;border-left:4px solid #ca8a04}
+        .severity-mild{background:#f0fdf4;color:#166534;border-left:4px solid #16a34a}
+        .severity-good{background:#ecfdf5;color:#065f46;border-left:4px solid #059669}
+
+        .spinner{border:3px solid rgba(255,255,255,.2);border-top:3px solid #0ea5e9;border-radius:50%;width:40px;height:40px;animation:spin .8s linear infinite}
+        @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+
+        .inspection-report{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;line-height:1.65;font-size:.9rem;color:#1e293b}
+        .inspection-report h3{font-size:1.15rem;font-weight:700;color:#1a365d;margin:1.25rem 0 .5rem;padding-bottom:.35rem;border-bottom:2px solid #e2e8f0}
+        .inspection-report h4{font-size:1rem;font-weight:600;color:#2c5282;margin:1rem 0 .4rem}
+        .inspection-report p{margin:.4rem 0;line-height:1.65}
+        .inspection-report ul,.inspection-report ol{margin:.35rem 0 .5rem 1.25rem;padding:0}
+        .inspection-report li{margin:.2rem 0;line-height:1.55}
+        .inspection-report strong{color:#0f172a}
+        .inspection-report hr{border:none;border-top:1px solid #e2e8f0;margin:.75rem 0}
+        .report-content{white-space:pre-wrap;line-height:1.7;padding:24px;font-size:.875rem;font-family:'JetBrains Mono','Courier New',monospace}
+
+        .reveal{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.4,0,.2,1)}
+        .reveal-left{opacity:0;transform:translateX(-40px);transition:all .7s cubic-bezier(.4,0,.2,1)}
+        .reveal-right{opacity:0;transform:translateX(40px);transition:all .7s cubic-bezier(.4,0,.2,1)}
+        .reveal-scale{opacity:0;transform:scale(.92);transition:all .6s cubic-bezier(.4,0,.2,1)}
+        .reveal.visible,.reveal-left.visible,.reveal-right.visible,.reveal-scale.visible{opacity:1;transform:none}
+
+        .card-hover{transition:all .35s cubic-bezier(.4,0,.2,1)}
+        .card-hover:hover{transform:translateY(-6px);box-shadow:0 20px 60px -15px rgba(0,0,0,.15)}
+
+        .nav-link{position:relative;padding-bottom:2px}
+        .nav-link::after{content:'';position:absolute;bottom:-2px;left:50%;width:0;height:2px;background:#38bdf8;transition:all .3s ease;transform:translateX(-50%);border-radius:1px}
+        .nav-link:hover::after,.nav-link.active::after{width:100%}
+
+        ::-webkit-scrollbar{width:8px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+        ::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+        .animate-float{animation:float 6s ease-in-out infinite}
+        .animate-float-slow{animation:float 8s ease-in-out infinite}
     </style>
-    
+
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen flex flex-col antialiased">
     <!-- Navigation -->
-    <nav class="gradient-hull shadow-lg sticky top-0 z-50">
+    <nav class="gradient-hull shadow-lg sticky top-0 z-50 transition-shadow duration-300" id="main-nav">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="{% url 'inspection:home' %}" class="flex items-center space-x-3">
-                        <!-- Ship Icon -->
-                        <svg class="w-10 h-10 text-maritime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 11h6"/>
-                        </svg>
-                        <span class="text-white text-xl font-bold tracking-wide">
-                            HullInspect<span class="text-maritime-400">AI</span>
-                        </span>
-                    </a>
-                </div>
-                
-                <div class="flex items-center space-x-6">
-                    <a href="{% url 'inspection:home' %}" 
-                       class="text-gray-300 hover:text-white transition-colors duration-200">
-                        Home
-                    </a>
-                    <a href="{% url 'inspection:upload' %}" 
-                       class="text-gray-300 hover:text-white transition-colors duration-200">
-                        New Inspection
-                    </a>
-                    <a href="{% url 'inspection:history' %}" 
-                       class="text-gray-300 hover:text-white transition-colors duration-200">
-                        History
-                    </a>
-                    <a href="{% url 'inspection:chat' %}" 
-                       class="text-gray-300 hover:text-white transition-colors duration-200 flex items-center gap-1">
+            <div class="flex justify-between h-16 items-center">
+                <a href="{% url 'inspection:home' %}" class="flex items-center space-x-3 group">
+                    <svg class="w-9 h-9 text-maritime-400 transition-transform duration-300 group-hover:scale-110"
+                         viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M4 28C4 28 10 34 20 34C30 34 36 28 36 28L33 18C33 18 28 14 20 14C12 14 7 18 7 18Z"
+                              fill="rgba(14,165,233,0.15)"/>
+                        <line x1="10" y1="18" x2="30" y2="18" opacity="0.5"/>
+                        <rect x="16" y="8" width="8" height="10" rx="1" fill="rgba(14,165,233,0.1)"/>
+                        <line x1="20" y1="4" x2="20" y2="8"/>
+                        <path d="M20 4L26 6L20 8" fill="rgba(14,165,233,0.3)" stroke-width="1"/>
+                        <path d="M2 30Q8 27 14 30Q20 33 26 30Q32 27 38 30" opacity="0.3" fill="none"/>
+                    </svg>
+                    <span class="text-white text-xl font-bold tracking-tight">
+                        Hull<span class="text-maritime-400">Inspect</span><span class="text-maritime-300 font-light ml-0.5">AI</span>
+                    </span>
+                </a>
+
+                <!-- Desktop Nav -->
+                <div class="hidden md:flex items-center space-x-1">
+                    <a href="{% url 'inspection:home' %}" class="nav-link text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">Home</a>
+                    <a href="{% url 'inspection:upload' %}" class="nav-link text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">New Inspection</a>
+                    <a href="{% url 'inspection:history' %}" class="nav-link text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">History</a>
+                    <a href="{% url 'inspection:chat' %}" class="nav-link text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
                         Chat
                     </a>
-                    <a href="{% url 'inspection:upload' %}" 
-                       class="bg-maritime-500 hover:bg-maritime-600 text-white px-4 py-2 rounded-lg 
-                              transition-all duration-200 transform hover:scale-105 shadow-md">
+                    <div class="w-px h-6 bg-gray-600 mx-2"></div>
+                    <a href="{% url 'inspection:upload' %}" class="bg-maritime-500 hover:bg-maritime-400 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-maritime-500/25">
                         Start Inspection
                     </a>
                 </div>
+
+                <!-- Mobile hamburger -->
+                <button class="md:hidden text-gray-300 hover:text-white p-2 rounded-lg transition-colors" onclick="toggleMobileMenu()">
+                    <svg id="menu-open-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    <svg id="menu-close-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden">
+            <div class="px-4 pb-4 pt-2 space-y-1 border-t border-gray-700/50">
+                <a href="{% url 'inspection:home' %}" class="block px-3 py-2.5 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg text-sm font-medium transition-colors">Home</a>
+                <a href="{% url 'inspection:upload' %}" class="block px-3 py-2.5 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg text-sm font-medium transition-colors">New Inspection</a>
+                <a href="{% url 'inspection:history' %}" class="block px-3 py-2.5 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg text-sm font-medium transition-colors">History</a>
+                <a href="{% url 'inspection:chat' %}" class="block px-3 py-2.5 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg text-sm font-medium transition-colors">AI Chat Assistant</a>
+                <div class="pt-2"><a href="{% url 'inspection:upload' %}" class="block w-full text-center bg-maritime-500 hover:bg-maritime-400 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors">Start Inspection</a></div>
             </div>
         </div>
     </nav>
-    
-    <!-- Main Content -->
-    <main class="flex-grow">
-        {% block content %}{% endblock %}
-    </main>
-    
+
+    <main class="flex-grow">{% block content %}{% endblock %}</main>
+
     <!-- Footer -->
-    <footer class="gradient-hull text-white mt-auto">
-        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <footer class="gradient-hull text-white mt-auto relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0">
+            <svg viewBox="0 0 1440 60" fill="none" class="w-full"><path d="M0 60L60 50C120 40 240 20 360 15C480 10 600 20 720 28C840 36 960 42 1080 38C1200 34 1320 20 1380 13L1440 6V0H0V60Z" fill="#f9fafb"/></svg>
+        </div>
+        <div class="max-w-7xl mx-auto pt-20 pb-12 px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
                 <div>
-                    <h3 class="text-lg font-semibold mb-4 text-maritime-400">HullInspect AI</h3>
-                    <p class="text-gray-400 text-sm">
-                        AI-powered maritime hull inspection system using advanced 
-                        computer vision for automated defect detection and professional 
-                        survey report generation.
-                    </p>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <svg class="w-8 h-8 text-maritime-400" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M4 28C4 28 10 34 20 34C30 34 36 28 36 28L33 18C33 18 28 14 20 14C12 14 7 18 7 18Z" fill="rgba(14,165,233,0.15)"/>
+                            <rect x="16" y="8" width="8" height="10" rx="1" fill="rgba(14,165,233,0.1)"/>
+                            <line x1="20" y1="4" x2="20" y2="8"/>
+                        </svg>
+                        <span class="text-lg font-bold">Hull<span class="text-maritime-400">Inspect</span></span>
+                    </div>
+                    <p class="text-gray-400 text-sm leading-relaxed">Hull defect detection using YOLO11 instance segmentation and Pruned Eigen-Tree anomaly detection, with GPT-4o-mini vision-language model for cross-verified survey reports.</p>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-4 text-maritime-400">Quick Links</h3>
-                    <ul class="space-y-2 text-gray-400 text-sm">
-                        <li><a href="{% url 'inspection:upload' %}" class="hover:text-white transition">New Inspection</a></li>
-                        <li><a href="{% url 'inspection:history' %}" class="hover:text-white transition">Inspection History</a></li>
-                        <li><a href="#" class="hover:text-white transition">Documentation</a></li>
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-maritime-400 mb-4">Navigation</h3>
+                    <ul class="space-y-2.5 text-gray-400 text-sm">
+                        <li><a href="{% url 'inspection:home' %}" class="hover:text-white transition-colors">Home</a></li>
+                        <li><a href="{% url 'inspection:upload' %}" class="hover:text-white transition-colors">New Inspection</a></li>
+                        <li><a href="{% url 'inspection:history' %}" class="hover:text-white transition-colors">Inspection History</a></li>
+                        <li><a href="{% url 'inspection:chat' %}" class="hover:text-white transition-colors">Chat Assistant</a></li>
                     </ul>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold mb-4 text-maritime-400">Technology</h3>
-                    <ul class="space-y-2 text-gray-400 text-sm">
-                        <li>YOLOv8 Object Detection</li>
-                        <li>Vision-Language Models</li>
-                        <li>Django Web Framework</li>
-                        <li>Maritime Survey Standards</li>
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-maritime-400 mb-4">Technology</h3>
+                    <ul class="space-y-2.5 text-gray-400 text-sm">
+                        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>YOLO11 Instance Segmentation</li>
+                        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>Pruned Eigen-Tree Detection</li>
+                        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>GPT-4o-mini (VLM)</li>
+                        <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>Django &amp; Ollama (Phi-3)</li>
                     </ul>
                 </div>
             </div>
+            <div class="border-t border-gray-700/50 mt-10 pt-6 text-center">
+                <p class="text-gray-500 text-xs">Research Project @TUHH &middot; Built with Django, YOLO11, Ollama</p>
+            </div>
         </div>
     </footer>
-    
+
+    <script>
+    function toggleMobileMenu(){
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+        document.getElementById('menu-open-icon').classList.toggle('hidden');
+        document.getElementById('menu-close-icon').classList.toggle('hidden');
+    }
+    function initScrollReveal(){
+        const obs=new IntersectionObserver(entries=>{
+            entries.forEach(e=>{if(e.isIntersecting){setTimeout(()=>e.target.classList.add('visible'),e.target.dataset.delay||0);obs.unobserve(e.target)}})
+        },{threshold:.1,rootMargin:'0px 0px -40px 0px'});
+        document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>obs.observe(el));
+    }
+    function animateCounters(){
+        const obs=new IntersectionObserver(entries=>{
+            entries.forEach(e=>{if(e.isIntersecting){
+                const el=e.target,target=parseInt(el.dataset.count),dur=1500,st=performance.now();
+                function upd(t){const p=Math.min((t-st)/dur,1),v=1-Math.pow(1-p,3);el.textContent=Math.floor(v*target);if(p<1)requestAnimationFrame(upd);else el.textContent=target}
+                requestAnimationFrame(upd);obs.unobserve(el);
+            }})
+        },{threshold:.5});
+        document.querySelectorAll('[data-count]').forEach(el=>obs.observe(el));
+    }
+    function initNavScroll(){
+        const nav=document.getElementById('main-nav');
+        window.addEventListener('scroll',()=>{nav.style.boxShadow=window.scrollY>50?'0 4px 30px rgba(0,0,0,.3)':''},{ passive:true });
+    }
+    document.addEventListener('DOMContentLoaded',()=>{initScrollReveal();animateCounters();initNavScroll()});
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

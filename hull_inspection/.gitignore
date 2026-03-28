@@ -56,3 +56,7 @@ runs/*/*/weights/epoch*.pt
 
 # Temp debug scripts
 _check_*.py
+_test_*.py
+
+# Backup files
+*.bak

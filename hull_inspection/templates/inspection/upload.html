@@ -2,387 +2,241 @@
 
 {% block title %}Upload Hull Image - HullInspect AI{% endblock %}
 
+{% block extra_css %}
+<style>
+    .drop-zone-active{border-color:#0ea5e9!important;background:rgba(14,165,233,.05)!important}
+    @keyframes progressPulse{0%,100%{opacity:1}50%{opacity:.7}}
+    .progress-active{animation:progressPulse 1.5s ease-in-out infinite}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-12">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         <!-- Header -->
-        <div class="text-center mb-10">
-            <h1 class="text-3xl font-bold text-hull-dark mb-4">New Hull Inspection</h1>
+        <div class="text-center mb-10 reveal">
+            <div class="inline-flex items-center gap-2 bg-maritime-50 border border-maritime-200 rounded-full px-4 py-1.5 mb-4">
+                <svg class="w-4 h-4 text-maritime-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <span class="text-sm text-maritime-700 font-medium">New Inspection</span>
+            </div>
+            <h1 class="text-3xl font-bold text-hull-dark mb-3">Upload Hull Image</h1>
             <p class="text-gray-600 max-w-2xl mx-auto">
-                Upload a high-quality image of the ship hull you want to inspect. 
-                Our AI will analyze it and generate a professional maritime inspection report.
+                Upload a high-quality photograph of the ship hull you want to inspect.
+                Our AI will detect defects and generate a professional survey report.
             </p>
         </div>
-        
-        <!-- Upload Form -->
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+
+        <!-- Upload Form Card -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden reveal" data-delay="100">
             <div class="p-8">
                 <form id="upload-form" enctype="multipart/form-data">
                     {% csrf_token %}
-                    
-                    <!-- Vessel Name (Optional) -->
+
+                    <!-- Vessel Name -->
                     <div class="mb-6">
                         <label for="vessel_name" class="block text-sm font-medium text-gray-700 mb-2">
-                            Vessel Name (Optional)
+                            Vessel Name <span class="text-gray-400">(Optional)</span>
                         </label>
-                        <input type="text" id="vessel_name" name="vessel_name" 
+                        <input type="text" id="vessel_name" name="vessel_name"
                                placeholder="e.g., MV Atlantic Pioneer"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 
-                                      focus:ring-maritime-500 focus:border-maritime-500 transition-colors">
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-maritime-500 focus:border-maritime-500 transition-all duration-200 text-sm">
                     </div>
-                    
-                    <!-- Detection Method Selector -->
+
+                    <!-- Detection Method -->
                     <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-3">
-                            Detection Method
-                        </label>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Detection Method</label>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- YOLO Segmentation -->
-                            <label class="relative cursor-pointer">
-                                <input type="radio" name="detection_method" value="yolo_seg" checked
-                                       class="peer sr-only" id="method-yolo">
-                                <div class="border-2 border-gray-200 rounded-xl p-5 transition-all duration-200
-                                            peer-checked:border-maritime-500 peer-checked:bg-maritime-50/50
-                                            hover:border-maritime-300 hover:shadow-md">
-                                    <div class="flex items-start space-x-3">
-                                        <div class="w-10 h-10 bg-maritime-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                                            <svg class="w-6 h-6 text-maritime-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                                            </svg>
+                            <label class="relative cursor-pointer group">
+                                <input type="radio" name="detection_method" value="yolo_seg" checked class="peer sr-only">
+                                <div class="border-2 border-gray-200 rounded-xl p-5 transition-all duration-200 peer-checked:border-maritime-500 peer-checked:bg-maritime-50/50 group-hover:border-maritime-300 group-hover:shadow-md">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                                         </div>
                                         <div>
-                                            <div class="font-semibold text-gray-800">YOLO Segmentation</div>
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                Deep learning instance segmentation trained on hull corrosion data.
-                                                Best for precise mask-level detection.
-                                            </p>
-                                            <span class="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                                                Supervised &bull; Deep Learning
-                                            </span>
+                                            <div class="font-semibold text-gray-800 text-sm">YOLO Segmentation</div>
+                                            <p class="text-xs text-gray-500 mt-1">Deep learning instance segmentation trained on hull corrosion data. Best for precise mask-level detection.</p>
+                                            <span class="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Supervised &bull; Deep Learning</span>
                                         </div>
                                     </div>
                                 </div>
                             </label>
-                            <!-- Eigen Tree -->
-                            <label class="relative cursor-pointer">
-                                <input type="radio" name="detection_method" value="eigen_tree"
-                                       class="peer sr-only" id="method-eigen">
-                                <div class="border-2 border-gray-200 rounded-xl p-5 transition-all duration-200
-                                            peer-checked:border-maritime-500 peer-checked:bg-maritime-50/50
-                                            hover:border-maritime-300 hover:shadow-md">
-                                    <div class="flex items-start space-x-3">
+                            <label class="relative cursor-pointer group">
+                                <input type="radio" name="detection_method" value="eigen_tree" class="peer sr-only">
+                                <div class="border-2 border-gray-200 rounded-xl p-5 transition-all duration-200 peer-checked:border-maritime-500 peer-checked:bg-maritime-50/50 group-hover:border-maritime-300 group-hover:shadow-md">
+                                    <div class="flex items-start gap-3">
                                         <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
-                                            </svg>
+                                            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
                                         </div>
                                         <div>
-                                            <div class="font-semibold text-gray-800">Eigen Tree</div>
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                Unsupervised pruned decision-tree hierarchy using eigen decomposition
-                                                (Chliveros et al., 2023). No training data needed.
-                                            </p>
-                                            <span class="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                                                Unsupervised &bull; Classical
-                                            </span>
+                                            <div class="font-semibold text-gray-800 text-sm">Eigen Tree</div>
+                                            <p class="text-xs text-gray-500 mt-1">Unsupervised pruned decision-tree hierarchy using eigen decomposition (Chliveros et al., 2023). No training data needed.</p>
+                                            <span class="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">Unsupervised &bull; Classical</span>
                                         </div>
                                     </div>
                                 </div>
                             </label>
                         </div>
                     </div>
-                    
-                    <!-- Image Upload Area -->
+
+                    <!-- Drop Zone -->
                     <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            Hull Image <span class="text-red-500">*</span>
-                        </label>
-                        
-                        <div id="drop-zone" 
-                             class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center 
-                                    hover:border-maritime-500 hover:bg-maritime-50/30 transition-all duration-300 
-                                    cursor-pointer relative">
-                            
-                            <!-- Default state -->
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Hull Image <span class="text-red-500">*</span></label>
+                        <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-maritime-400 transition-all duration-300 cursor-pointer relative group">
                             <div id="upload-prompt" class="space-y-4">
                                 <div class="flex justify-center">
-                                    <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                                    </svg>
+                                    <div class="w-16 h-16 rounded-2xl bg-maritime-50 flex items-center justify-center group-hover:bg-maritime-100 transition-colors">
+                                        <svg class="w-8 h-8 text-maritime-400 group-hover:text-maritime-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                    </div>
                                 </div>
                                 <div>
-                                    <p class="text-lg font-medium text-gray-700">
-                                        Drag and drop your hull image here
-                                    </p>
-                                    <p class="text-sm text-gray-500 mt-1">or click to browse</p>
+                                    <p class="text-base font-medium text-gray-700">Drag and drop your hull image here</p>
+                                    <p class="text-sm text-gray-500 mt-1">or <span class="text-maritime-600 font-medium">click to browse</span></p>
                                 </div>
-                                <p class="text-xs text-gray-400">
-                                    Supported formats: JPG, PNG, WEBP (Max 20MB)
-                                </p>
+                                <p class="text-xs text-gray-400">Supported formats: JPG, PNG, WEBP &bull; Max 20 MB</p>
                             </div>
-                            
-                            <!-- Preview state -->
                             <div id="image-preview" class="hidden">
                                 <img id="preview-image" src="" alt="Preview" class="max-h-64 mx-auto rounded-lg shadow-md">
-                                <p id="file-name" class="mt-4 text-sm text-gray-600"></p>
-                                <button type="button" id="remove-image" 
-                                        class="mt-2 text-red-500 hover:text-red-700 text-sm font-medium">
-                                    Remove Image
-                                </button>
+                                <p id="file-name" class="mt-4 text-sm text-gray-600 font-medium"></p>
+                                <button type="button" id="remove-image" class="mt-2 text-red-500 hover:text-red-700 text-sm font-medium transition-colors">Remove Image</button>
                             </div>
-                            
-                            <input type="file" id="image-input" name="image" accept="image/*" 
-                                   class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            <input type="file" id="image-input" name="image" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                         </div>
                     </div>
-                    
+
                     <!-- Guidelines -->
-                    <div class="mb-8 bg-maritime-50 rounded-lg p-6">
-                        <h3 class="text-sm font-semibold text-maritime-700 mb-3 flex items-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
+                    <div class="mb-8 bg-maritime-50/70 rounded-xl p-6 border border-maritime-100">
+                        <h3 class="text-sm font-semibold text-maritime-700 mb-3 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Image Guidelines for Best Results
                         </h3>
                         <ul class="text-sm text-maritime-600 space-y-2">
-                            <li class="flex items-start">
-                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                                </svg>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                 Use high-resolution images for better detection accuracy
                             </li>
-                            <li class="flex items-start">
-                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                                </svg>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                 Ensure good lighting with minimal shadows
                             </li>
-                            <li class="flex items-start">
-                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                                </svg>
-                                Capture hull surface from a perpendicular angle
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                Capture hull surface from a perpendicular angle when possible
                             </li>
-                            <li class="flex items-start">
-                                <svg class="w-4 h-4 mr-2 mt-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                                </svg>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-4 h-4 mt-0.5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                 Include any suspected defect areas in the frame
                             </li>
                         </ul>
                     </div>
-                    
-                    <!-- Submit Button -->
+
+                    <!-- Actions -->
                     <div class="flex items-center justify-between">
-                        <a href="{% url 'inspection:home' %}" 
-                           class="text-gray-600 hover:text-gray-800 font-medium">
-                            ← Back to Home
-                        </a>
-                        
+                        <a href="{% url 'inspection:home' %}" class="text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors">&larr; Back to Home</a>
                         <button type="submit" id="submit-btn"
-                                class="bg-maritime-600 hover:bg-maritime-700 text-white px-8 py-3 
-                                       rounded-lg font-semibold transition-all duration-300 
-                                       transform hover:scale-105 shadow-lg disabled:opacity-50 
-                                       disabled:cursor-not-allowed disabled:transform-none
-                                       flex items-center space-x-2">
+                                class="bg-maritime-600 hover:bg-maritime-700 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2 text-sm">
                             <span id="btn-text">Analyze Hull</span>
-                            <svg id="btn-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                    d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                            </svg>
-                            <div id="btn-spinner" class="hidden spinner"></div>
+                            <svg id="btn-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                            <div id="btn-spinner" class="hidden spinner" style="width:20px;height:20px;border-width:2px"></div>
                         </button>
                     </div>
                 </form>
             </div>
         </div>
-        
+
         <!-- Processing Modal -->
-        <div id="processing-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div id="processing-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
             <div class="bg-white rounded-2xl p-10 max-w-md w-full mx-4 text-center shadow-2xl">
-                <div class="spinner mx-auto mb-6" style="width: 60px; height: 60px; border-width: 4px;"></div>
+                <div class="relative mx-auto mb-6" style="width:64px;height:64px">
+                    <div class="spinner progress-active" style="width:64px;height:64px;border-width:4px"></div>
+                    <svg class="w-6 h-6 text-maritime-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
                 <h3 class="text-xl font-semibold text-gray-800 mb-2">Analyzing Hull Image</h3>
-                <p class="text-gray-600 mb-4" id="processing-status">Running YOLO detection...</p>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div id="progress-bar" class="bg-maritime-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                <p class="text-gray-500 mb-5 text-sm" id="processing-status">Initializing detection pipeline...</p>
+                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div id="progress-bar" class="bg-gradient-to-r from-maritime-400 to-maritime-600 h-2 rounded-full transition-all duration-500 ease-out" style="width:0%"></div>
                 </div>
-                <div class="mt-6 text-sm text-gray-500">
-                    <p>This may take 15-30 seconds</p>
-                </div>
+                <p class="mt-5 text-xs text-gray-400">This may take 15&ndash;30 seconds depending on image size</p>
             </div>
         </div>
-        
+
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('upload-form');
-    const dropZone = document.getElementById('drop-zone');
-    const imageInput = document.getElementById('image-input');
-    const uploadPrompt = document.getElementById('upload-prompt');
-    const imagePreview = document.getElementById('image-preview');
-    const previewImage = document.getElementById('preview-image');
-    const fileName = document.getElementById('file-name');
-    const removeBtn = document.getElementById('remove-image');
-    const submitBtn = document.getElementById('submit-btn');
-    const btnText = document.getElementById('btn-text');
-    const btnIcon = document.getElementById('btn-icon');
-    const btnSpinner = document.getElementById('btn-spinner');
-    const processingModal = document.getElementById('processing-modal');
-    const progressBar = document.getElementById('progress-bar');
-    const processingStatus = document.getElementById('processing-status');
-    
-    // Drag and drop handling
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    function preventDefaults(e) {
+document.addEventListener('DOMContentLoaded', function(){
+    const form=document.getElementById('upload-form'),
+        dropZone=document.getElementById('drop-zone'),
+        imageInput=document.getElementById('image-input'),
+        uploadPrompt=document.getElementById('upload-prompt'),
+        imagePreview=document.getElementById('image-preview'),
+        previewImage=document.getElementById('preview-image'),
+        fileName=document.getElementById('file-name'),
+        removeBtn=document.getElementById('remove-image'),
+        submitBtn=document.getElementById('submit-btn'),
+        btnText=document.getElementById('btn-text'),
+        btnIcon=document.getElementById('btn-icon'),
+        btnSpinner=document.getElementById('btn-spinner'),
+        processingModal=document.getElementById('processing-modal'),
+        progressBar=document.getElementById('progress-bar'),
+        processingStatus=document.getElementById('processing-status');
+
+    ['dragenter','dragover','dragleave','drop'].forEach(e=>dropZone.addEventListener(e,ev=>{ev.preventDefault();ev.stopPropagation()},false));
+    ['dragenter','dragover'].forEach(e=>dropZone.addEventListener(e,()=>dropZone.classList.add('drop-zone-active'),false));
+    ['dragleave','drop'].forEach(e=>dropZone.addEventListener(e,()=>dropZone.classList.remove('drop-zone-active'),false));
+    dropZone.addEventListener('drop',e=>handleFiles(e.dataTransfer.files),false);
+    imageInput.addEventListener('change',function(){handleFiles(this.files)});
+
+    function handleFiles(files){
+        if(!files.length)return;
+        const file=files[0];
+        if(!file.type.startsWith('image/')){alert('Please upload an image file.');return}
+        if(file.size>20*1024*1024){alert('File size must be less than 20 MB.');return}
+        const reader=new FileReader();
+        reader.onload=e=>{previewImage.src=e.target.result;fileName.textContent=file.name+' ('+Math.round(file.size/1024)+' KB)';uploadPrompt.classList.add('hidden');imagePreview.classList.remove('hidden')};
+        reader.readAsDataURL(file);
+    }
+    removeBtn.addEventListener('click',()=>{imageInput.value='';uploadPrompt.classList.remove('hidden');imagePreview.classList.add('hidden')});
+
+    form.addEventListener('submit',async function(e){
         e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-    
-    function highlight() {
-        dropZone.classList.add('border-maritime-500', 'bg-maritime-50');
-    }
-    
-    function unhighlight() {
-        dropZone.classList.remove('border-maritime-500', 'bg-maritime-50');
-    }
-    
-    dropZone.addEventListener('drop', handleDrop, false);
-    
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        handleFiles(files);
-    }
-    
-    imageInput.addEventListener('change', function() {
-        handleFiles(this.files);
-    });
-    
-    function handleFiles(files) {
-        if (files.length > 0) {
-            const file = files[0];
-            
-            if (!file.type.startsWith('image/')) {
-                alert('Please upload an image file.');
-                return;
-            }
-            
-            if (file.size > 20 * 1024 * 1024) {
-                alert('File size must be less than 20MB.');
-                return;
-            }
-            
-            // Show preview
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewImage.src = e.target.result;
-                fileName.textContent = file.name;
-                uploadPrompt.classList.add('hidden');
-                imagePreview.classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
-    }
-    
-    removeBtn.addEventListener('click', function() {
-        imageInput.value = '';
-        uploadPrompt.classList.remove('hidden');
-        imagePreview.classList.add('hidden');
-    });
-    
-    // Form submission
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        if (!imageInput.files.length) {
-            alert('Please select an image to analyze.');
-            return;
-        }
-        
-        // Show processing state
-        submitBtn.disabled = true;
-        btnText.textContent = 'Processing...';
-        btnIcon.classList.add('hidden');
-        btnSpinner.classList.remove('hidden');
+        if(!imageInput.files.length){alert('Please select an image to analyze.');return}
+
+        submitBtn.disabled=true;btnText.textContent='Processing...';btnIcon.classList.add('hidden');btnSpinner.classList.remove('hidden');
         processingModal.classList.remove('hidden');
-        
-        // Simulate progress
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-            progress += Math.random() * 15;
-            if (progress > 90) progress = 90;
-            progressBar.style.width = progress + '%';
-            
-            if (progress < 30) {
-                processingStatus.textContent = 'Running YOLO detection...';
-            } else if (progress < 60) {
-                processingStatus.textContent = 'Analyzing defects...';
-            } else {
-                processingStatus.textContent = 'Generating inspection report...';
-            }
-        }, 500);
-        
-        // Submit form
-        const formData = new FormData();
-        formData.append('image', imageInput.files[0]);
-        formData.append('vessel_name', document.getElementById('vessel_name').value);
-        const selectedMethod = document.querySelector('input[name="detection_method"]:checked');
-        formData.append('detection_method', selectedMethod ? selectedMethod.value : 'yolo_seg');
-        
-        // Update status text based on method
-        const methodName = selectedMethod && selectedMethod.value === 'eigen_tree'
-            ? 'Eigen Tree' : 'YOLO';
-        processingStatus.textContent = `Running ${methodName} detection...`;
-        
-        try {
-            const response = await fetch('{% url "inspection:api_upload" %}', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            clearInterval(progressInterval);
-            progressBar.style.width = '100%';
-            processingStatus.textContent = 'Complete! Redirecting...';
-            
-            if (data.success) {
-                setTimeout(() => {
-                    window.location.href = data.redirect_url;
-                }, 500);
-            } else {
-                throw new Error(data.error || 'Processing failed');
-            }
-            
-        } catch (error) {
-            clearInterval(progressInterval);
-            processingModal.classList.add('hidden');
-            submitBtn.disabled = false;
-            btnText.textContent = 'Analyze Hull';
-            btnIcon.classList.remove('hidden');
-            btnSpinner.classList.add('hidden');
-            
-            alert('Error: ' + error.message);
+
+        let progress=0;
+        const selectedMethod=document.querySelector('input[name="detection_method"]:checked');
+        const methodName=selectedMethod&&selectedMethod.value==='eigen_tree'?'Eigen Tree':'YOLO Segmentation';
+
+        const progressInterval=setInterval(()=>{
+            progress+=Math.random()*12;if(progress>92)progress=92;
+            progressBar.style.width=progress+'%';
+            if(progress<25)processingStatus.textContent='Running '+methodName+' detection...';
+            else if(progress<55)processingStatus.textContent='Analyzing defects and segmentation masks...';
+            else if(progress<80)processingStatus.textContent='Generating VLM inspection report...';
+            else processingStatus.textContent='Finalizing report...';
+        },600);
+
+        const formData=new FormData();
+        formData.append('image',imageInput.files[0]);
+        formData.append('vessel_name',document.getElementById('vessel_name').value);
+        formData.append('detection_method',selectedMethod?selectedMethod.value:'yolo_seg');
+
+        try{
+            const resp=await fetch('{% url "inspection:api_upload" %}',{method:'POST',body:formData});
+            const data=await resp.json();
+            clearInterval(progressInterval);progressBar.style.width='100%';
+            processingStatus.textContent='Complete! Redirecting...';
+            if(data.success){setTimeout(()=>{window.location.href=data.redirect_url},500)}
+            else{throw new Error(data.error||'Processing failed')}
+        }catch(err){
+            clearInterval(progressInterval);processingModal.classList.add('hidden');
+            submitBtn.disabled=false;btnText.textContent='Analyze Hull';btnIcon.classList.remove('hidden');btnSpinner.classList.add('hidden');
+            alert('Error: '+err.message);
         }
     });
 });

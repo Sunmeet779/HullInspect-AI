@@ -129,13 +129,20 @@ DEFECT_CLASSES = {
 # =============================================================================
 # VLM Configuration
 # =============================================================================
-# Ollama backend (recommended for Mac M1 — free, local, no API key)
+# 3-stage pipeline: GitHub Models (primary) → Ollama (fallback) → Template
+#
+# Stage 1: GitHub Models API (GPT-4o-mini)
+# Credentials loaded from .env file automatically by vlm_service_v2
+# Required .env keys: GITHUB_TOKEN, GITHUB_MODELS_ENDPOINT, GITHUB_MODELS_MODEL
+VLM_GITHUB_MODEL = 'gpt-4o-mini'
+VLM_GITHUB_ENDPOINT = 'https://models.inference.ai.azure.com'
+
+# Stage 2: Ollama backend (local fallback for Mac M1)
 # Install: brew install ollama
 # Models (pick one):
 #   ollama pull minicpm-v     (3B, RECOMMENDED, best quality/speed ratio)
 #   ollama pull llava          (7B, good quality)
 #   ollama pull moondream      (1.8B, lightest)
-VLM_BACKEND = 'ollama'
 VLM_OLLAMA_URL = 'http://localhost:11434'
 # Model auto-detected from installed Ollama models; set to override:
 VLM_OLLAMA_MODEL = None  # None = auto-detect best available

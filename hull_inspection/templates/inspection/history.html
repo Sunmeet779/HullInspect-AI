@@ -5,162 +5,96 @@
 {% block content %}
 <div class="min-h-screen bg-gray-50 py-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         <!-- Header -->
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8 reveal">
             <div>
                 <h1 class="text-3xl font-bold text-hull-dark">Inspection History</h1>
-                <p class="text-gray-600 mt-2">
-                    View and manage all your hull inspection reports.
-                </p>
+                <p class="text-gray-500 mt-2 text-sm">View and manage all your hull inspection reports.</p>
             </div>
             <div class="mt-4 md:mt-0">
-                <a href="{% url 'inspection:upload' %}" 
-                   class="bg-maritime-600 hover:bg-maritime-700 text-white px-6 py-3 rounded-lg 
-                          font-medium transition-colors duration-200 flex items-center space-x-2 inline-flex">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <span>New Inspection</span>
+                <a href="{% url 'inspection:upload' %}" class="bg-maritime-600 hover:bg-maritime-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 inline-flex items-center gap-2 text-sm hover:shadow-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    New Inspection
                 </a>
             </div>
         </div>
-        
+
         {% if inspections %}
-        <!-- Inspections Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for inspection in inspections %}
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                <!-- Image -->
-                <div class="h-48 bg-gray-200 relative overflow-hidden">
+            <div class="card-hover bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 reveal" data-delay="{{ forloop.counter0 }}00">
+                <div class="h-48 bg-gray-100 relative overflow-hidden">
                     {% if inspection.annotated_image %}
-                    <img src="{{ inspection.annotated_image.url }}" alt="Inspection {{ inspection.id }}" 
-                         class="w-full h-full object-cover">
+                    <img src="{{ inspection.annotated_image.url }}" alt="Inspection {{ inspection.id }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
                     {% elif inspection.original_image %}
-                    <img src="{{ inspection.original_image.url }}" alt="Original" 
-                         class="w-full h-full object-cover">
+                    <img src="{{ inspection.original_image.url }}" alt="Original" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
                     {% else %}
-                    <div class="w-full h-full flex items-center justify-center text-gray-400">
-                        <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
+                    <div class="w-full h-full flex items-center justify-center text-gray-300">
+                        <svg class="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </div>
                     {% endif %}
-                    
-                    <!-- Severity Badge -->
                     <div class="absolute top-3 right-3">
-                        <span class="severity-{{ inspection.overall_severity|default:'unknown' }} 
-                                     px-3 py-1 rounded-full text-xs font-semibold uppercase shadow-lg">
-                            {{ inspection.overall_severity|default:"pending" }}
-                        </span>
+                        <span class="severity-{{ inspection.overall_severity|default:'unknown' }} px-3 py-1 rounded-full text-xs font-semibold uppercase shadow-sm">{{ inspection.overall_severity|default:"pending" }}</span>
                     </div>
-                    
-                    <!-- Status Badge -->
                     <div class="absolute top-3 left-3">
                         {% if inspection.status == 'completed' %}
-                        <span class="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-                            Completed
-                        </span>
+                        <span class="bg-green-500/90 text-white px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm">Completed</span>
                         {% elif inspection.status == 'processing' %}
-                        <span class="bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium animate-pulse">
-                            Processing
-                        </span>
+                        <span class="bg-yellow-500/90 text-white px-2 py-1 rounded-md text-xs font-medium animate-pulse backdrop-blur-sm">Processing</span>
                         {% elif inspection.status == 'failed' %}
-                        <span class="bg-red-500 text-white px-2 py-1 rounded text-xs font-medium">
-                            Failed
-                        </span>
+                        <span class="bg-red-500/90 text-white px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm">Failed</span>
                         {% endif %}
                     </div>
                 </div>
-                
-                <!-- Content -->
                 <div class="p-5">
                     <div class="flex items-center justify-between mb-3">
-                        <div class="text-sm text-gray-500">
-                            {{ inspection.created_at|date:"M d, Y" }}
-                        </div>
-                        <div class="text-sm text-gray-500">
-                            {{ inspection.created_at|time:"H:i" }}
-                        </div>
+                        <span class="text-sm text-gray-400">{{ inspection.created_at|date:"M d, Y" }}</span>
+                        <span class="text-sm text-gray-400">{{ inspection.created_at|time:"H:i" }}</span>
                     </div>
-                    
                     {% if inspection.vessel_name %}
-                    <h3 class="font-semibold text-gray-800 mb-2 truncate">
-                        {{ inspection.vessel_name }}
-                    </h3>
+                    <h3 class="font-semibold text-gray-800 mb-2 truncate">{{ inspection.vessel_name }}</h3>
                     {% endif %}
-                    
+                    <p class="text-xs font-mono text-gray-400 mb-2 truncate" title="{{ inspection.id }}">ID: {{ inspection.id|truncatechars:13 }}</p>
                     <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                            <div class="text-center">
-                                <div class="text-xl font-bold text-maritime-600">{{ inspection.detection_count }}</div>
-                                <div class="text-xs text-gray-500">Defects</div>
-                            </div>
-                        </div>
-                        
-                        <a href="{% url 'inspection:results' inspection.id %}" 
-                           class="text-maritime-600 hover:text-maritime-700 font-medium text-sm 
-                                  flex items-center space-x-1">
-                            <span>View Report</span>
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                            </svg>
+                        <a href="{% url 'inspection:results' inspection.id %}" class="text-maritime-600 hover:text-maritime-700 font-medium text-sm flex items-center gap-1 transition-colors">
+                            View Report
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </a>
                     </div>
                 </div>
             </div>
             {% endfor %}
         </div>
-        
-        <!-- Pagination -->
+
         {% if page_obj.has_other_pages %}
-        <div class="mt-10 flex justify-center">
-            <nav class="flex items-center space-x-2">
+        <div class="mt-10 flex justify-center reveal">
+            <nav class="flex items-center gap-2">
                 {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}" 
-                   class="px-4 py-2 bg-white rounded-lg shadow hover:bg-gray-50 text-gray-700">
-                    Previous
-                </a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 bg-white rounded-lg shadow-sm hover:bg-gray-50 text-gray-700 text-sm font-medium border border-gray-200 transition-colors">Previous</a>
                 {% endif %}
-                
-                <span class="px-4 py-2 text-gray-500">
-                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                </span>
-                
+                <span class="px-4 py-2 text-gray-500 text-sm">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
                 {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" 
-                   class="px-4 py-2 bg-white rounded-lg shadow hover:bg-gray-50 text-gray-700">
-                    Next
-                </a>
+                <a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 bg-white rounded-lg shadow-sm hover:bg-gray-50 text-gray-700 text-sm font-medium border border-gray-200 transition-colors">Next</a>
                 {% endif %}
             </nav>
         </div>
         {% endif %}
-        
+
         {% else %}
         <!-- Empty State -->
-        <div class="bg-white rounded-2xl shadow-lg p-12 text-center">
-            <svg class="w-24 h-24 mx-auto text-gray-300 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
+        <div class="bg-white rounded-2xl shadow-lg p-12 text-center reveal">
+            <div class="w-20 h-20 rounded-2xl bg-maritime-50 flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10 text-maritime-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
             <h3 class="text-xl font-semibold text-gray-800 mb-2">No Inspections Yet</h3>
-            <p class="text-gray-500 mb-6 max-w-md mx-auto">
-                Start by uploading your first hull image to generate an AI-powered inspection report.
-            </p>
-            <a href="{% url 'inspection:upload' %}" 
-               class="bg-maritime-600 hover:bg-maritime-700 text-white px-8 py-3 rounded-lg 
-                      font-medium transition-colors duration-200 inline-flex items-center space-x-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <span>Upload First Image</span>
+            <p class="text-gray-500 mb-6 max-w-md mx-auto text-sm">Start by uploading your first hull image to generate an AI-powered inspection report.</p>
+            <a href="{% url 'inspection:upload' %}" class="bg-maritime-600 hover:bg-maritime-700 text-white px-8 py-3 rounded-xl font-medium transition-all duration-200 inline-flex items-center gap-2 text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                Upload First Image
             </a>
         </div>
         {% endif %}
-        
     </div>
 </div>
 {% endblock %}
