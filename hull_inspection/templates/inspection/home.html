@@ -2,270 +2,423 @@
 
 {% block title %}HullInspect AI - Automated Maritime Hull Inspection{% endblock %}
 
+{% block extra_css %}
+<style>
+    @keyframes waveMove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+    .wave-bg{animation:waveMove 18s linear infinite}
+    @keyframes scanLine{0%{top:10%}50%{top:80%}100%{top:10%}}
+    .scan-line{animation:scanLine 3s ease-in-out infinite}
+    @keyframes pulse-ring{0%{transform:scale(.8);opacity:1}100%{transform:scale(2);opacity:0}}
+    .pulse-ring{animation:pulse-ring 2s ease-out infinite}
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- Hero Section -->
-<section class="gradient-maritime min-h-[80vh] flex items-center relative overflow-hidden">
-    <!-- Animated Background Elements -->
-    <div class="absolute inset-0 overflow-hidden">
-        <div class="absolute w-96 h-96 bg-maritime-400/10 rounded-full -top-20 -left-20 wave-animation"></div>
-        <div class="absolute w-64 h-64 bg-maritime-300/10 rounded-full bottom-20 right-20 wave-animation" style="animation-delay: 1s;"></div>
+<!-- ════════════ HERO ════════════ -->
+<section class="gradient-maritime min-h-[85vh] flex items-center relative overflow-hidden">
+    <!-- Animated background orbs -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute w-[500px] h-[500px] bg-maritime-400/5 rounded-full -top-32 -left-32 animate-float"></div>
+        <div class="absolute w-[350px] h-[350px] bg-maritime-300/5 rounded-full bottom-10 right-10 animate-float-slow"></div>
+        <div class="absolute w-[200px] h-[200px] bg-cyan-400/5 rounded-full top-1/2 left-1/3 animate-float" style="animation-delay:2s"></div>
+        <!-- Subtle grid pattern -->
+        <div class="absolute inset-0 opacity-[0.03]" style="background-image:radial-gradient(circle,#fff 1px,transparent 1px);background-size:40px 40px"></div>
     </div>
-    
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <!-- Left: Text -->
             <div class="text-center lg:text-left">
-                <h1 class="text-4xl md:text-6xl font-bold text-white mb-6">
-                    AI-Powered<br>
-                    <span class="text-maritime-300">Hull Inspection</span>
+                <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-4 py-1.5 mb-6">
+                    <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                    <span class="text-sm text-maritime-200 font-medium">AI-Powered Analysis Platform</span>
+                </div>
+
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white mb-6 leading-tight tracking-tight">
+                    Automated<br>
+                    <span class="bg-gradient-to-r from-maritime-300 to-cyan-300 bg-clip-text text-transparent">Hull Inspection</span>
                 </h1>
-                <p class="text-xl text-gray-300 mb-8 max-w-xl">
-                    Revolutionizing maritime safety with advanced computer vision. 
-                    Upload hull images and receive professional-grade inspection reports 
-                    powered by YOLO defect detection and Vision-Language AI.
+
+                <p class="text-lg text-gray-300 mb-8 max-w-xl leading-relaxed">
+                    Upload hull images and receive professional-grade survey reports
+                    in seconds. Our system combines <strong class="text-white">YOLO instance segmentation</strong>
+                    with <strong class="text-white">Vision-Language AI</strong> to detect corrosion,
+                    coating failures, and marine fouling.
                 </p>
+
                 <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                    <a href="{% url 'inspection:upload' %}" 
-                       class="bg-maritime-500 hover:bg-maritime-400 text-white px-8 py-4 rounded-xl 
-                              text-lg font-semibold transition-all duration-300 transform hover:scale-105 
-                              shadow-lg hover:shadow-xl flex items-center justify-center space-x-2">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                        </svg>
-                        <span>Start Inspection</span>
+                    <a href="{% url 'inspection:upload' %}"
+                       class="group bg-maritime-500 hover:bg-maritime-400 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl hover:shadow-maritime-500/25 flex items-center justify-center gap-3">
+                        <svg class="w-5 h-5 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                        Start Inspection
                     </a>
-                    <a href="#how-it-works" 
-                       class="glass-effect hover:bg-white/20 text-white px-8 py-4 rounded-xl 
-                              text-lg font-semibold transition-all duration-300 border border-white/30
-                              flex items-center justify-center space-x-2">
-                        <span>Learn More</span>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
+                    <a href="#how-it-works"
+                       class="glass-effect hover:bg-white/15 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2">
+                        Learn More
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </a>
                 </div>
             </div>
-            
+
+            <!-- Right: Ship + Surveyor Illustration -->
             <div class="hidden lg:block">
-                <!-- Visual Element - Ship Hull Illustration -->
                 <div class="relative">
-                    <div class="glass-effect rounded-2xl p-8 shadow-2xl">
-                        <div class="bg-hull-dark rounded-xl p-6 text-center">
-                            <svg class="w-full h-64 text-maritime-400" viewBox="0 0 200 120" fill="none" stroke="currentColor">
-                                <!-- Ship hull simplified SVG -->
-                                <path d="M20 80 Q50 100 100 100 Q150 100 180 80 L170 40 Q100 20 30 40 Z" 
-                                      stroke-width="2" fill="rgba(14, 165, 233, 0.1)"/>
-                                <!-- Detection boxes simulation -->
-                                <rect x="40" y="50" width="30" height="20" stroke="#ef4444" stroke-width="2" fill="none" stroke-dasharray="4"/>
-                                <rect x="90" y="60" width="25" height="15" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="4"/>
-                                <rect x="130" y="45" width="35" height="25" stroke="#ef4444" stroke-width="2" fill="none" stroke-dasharray="4"/>
-                                <!-- Labels -->
-                                <text x="45" y="45" fill="#ef4444" font-size="8">Corrosion</text>
-                                <text x="92" y="55" fill="#f59e0b" font-size="8">Paint</text>
-                                <text x="135" y="40" fill="#ef4444" font-size="8">Severe</text>
+                    <!-- Glow behind -->
+                    <div class="absolute inset-0 bg-maritime-500/20 blur-3xl rounded-full scale-75"></div>
+
+                    <div class="glass-effect rounded-2xl p-6 shadow-2xl relative">
+                        <div class="bg-hull-dark/80 rounded-xl p-5 relative overflow-hidden">
+                            <!-- Ship + Hull + Inspector SVG -->
+                            <svg viewBox="0 0 480 300" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full">
+                                <!-- Ocean / water -->
+                                <path d="M0 240 Q60 230 120 245 Q180 260 240 240 Q300 220 360 242 Q420 260 480 235 L480 300 L0 300Z" fill="#0c4a6e" opacity="0.4"/>
+                                <path d="M0 250 Q60 240 120 255 Q180 268 240 250 Q300 232 360 252 Q420 268 480 248 L480 300 L0 300Z" fill="#0c4a6e" opacity="0.6"/>
+                                <path class="wave-bg" d="M0 260 Q120 250 240 265 Q360 278 480 258 Q600 248 720 265 Q840 278 960 258 L960 300 L0 300Z" fill="#0c4a6e" opacity="0.3"/>
+
+                                <!-- Ship hull -->
+                                <path d="M80 200 L100 140 L380 140 L400 200 Q380 235 240 235 Q100 235 80 200Z"
+                                      fill="#1e293b" stroke="#38bdf8" stroke-width="1.5" opacity="0.9"/>
+                                <!-- Waterline -->
+                                <line x1="90" y1="218" x2="390" y2="218" stroke="#ef4444" stroke-width="1" stroke-dasharray="6 3" opacity="0.6"/>
+                                <!-- Hull plates -->
+                                <line x1="160" y1="145" x2="145" y2="210" stroke="#334155" stroke-width="0.8"/>
+                                <line x1="240" y1="145" x2="240" y2="215" stroke="#334155" stroke-width="0.8"/>
+                                <line x1="320" y1="145" x2="335" y2="210" stroke="#334155" stroke-width="0.8"/>
+                                <line x1="100" y1="170" x2="380" y2="170" stroke="#334155" stroke-width="0.8"/>
+                                <line x1="90" y1="195" x2="390" y2="195" stroke="#334155" stroke-width="0.8"/>
+
+                                <!-- Deck -->
+                                <rect x="100" y="130" width="280" height="14" rx="2" fill="#1e293b" stroke="#38bdf8" stroke-width="1"/>
+                                <!-- Superstructure -->
+                                <rect x="195" y="75" width="90" height="55" rx="3" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+                                <!-- Windows -->
+                                <rect x="205" y="85" width="12" height="8" rx="1" fill="#38bdf8" opacity="0.6"/>
+                                <rect x="222" y="85" width="12" height="8" rx="1" fill="#38bdf8" opacity="0.6"/>
+                                <rect x="239" y="85" width="12" height="8" rx="1" fill="#38bdf8" opacity="0.5"/>
+                                <rect x="256" y="85" width="12" height="8" rx="1" fill="#38bdf8" opacity="0.4"/>
+                                <!-- Bridge -->
+                                <rect x="210" y="60" width="60" height="18" rx="2" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+                                <rect x="218" y="63" width="8" height="8" rx="1" fill="#0ea5e9" opacity="0.7"/>
+                                <rect x="230" y="63" width="8" height="8" rx="1" fill="#0ea5e9" opacity="0.6"/>
+                                <rect x="242" y="63" width="8" height="8" rx="1" fill="#0ea5e9" opacity="0.5"/>
+                                <rect x="254" y="63" width="8" height="8" rx="1" fill="#0ea5e9" opacity="0.4"/>
+                                <!-- Mast -->
+                                <line x1="240" y1="30" x2="240" y2="60" stroke="#38bdf8" stroke-width="1.2"/>
+                                <!-- Radar -->
+                                <ellipse cx="240" cy="30" rx="12" ry="3" stroke="#38bdf8" stroke-width="1" fill="none"/>
+                                <!-- Funnel -->
+                                <rect x="300" y="100" width="20" height="30" rx="2" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+                                <rect x="302" y="100" width="16" height="5" rx="1" fill="#ef4444" opacity="0.7"/>
+
+                                <!-- Defect detection boxes with animation -->
+                                <g>
+                                    <!-- Corrosion Detection zone -->
+                                    <rect x="115" y="155" width="40" height="30" rx="2" stroke="#ef4444" stroke-width="2" fill="rgba(239,68,68,0.08)" stroke-dasharray="4 2">
+                                        <animate attributeName="stroke-opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="118" y="152" fill="#ef4444" font-size="7" font-family="Inter" font-weight="600">Corrosion</text>
+                                    <text x="118" y="178" fill="#fca5a5" font-size="6" font-family="Inter">Detected</text>
+
+                                    <!-- Mechanical Damage -->
+                                    <rect x="260" y="148" width="38" height="28" rx="2" stroke="#f59e0b" stroke-width="2" fill="rgba(245,158,11,0.08)" stroke-dasharray="4 2">
+                                        <animate attributeName="stroke-opacity" values="1;0.4;1" dur="2.5s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="263" y="145" fill="#f59e0b" font-size="7" font-family="Inter" font-weight="600">Mech. Damage</text>
+                                    <text x="263" y="170" fill="#fcd34d" font-size="6" font-family="Inter">Dents / Gouges</text>
+
+                                    <!-- Coating Assessment -->
+                                    <rect x="330" y="170" width="45" height="20" rx="2" stroke="#a78bfa" stroke-width="2" fill="rgba(167,139,250,0.08)" stroke-dasharray="4 2">
+                                        <animate attributeName="stroke-opacity" values="1;0.4;1" dur="1.8s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="333" y="167" fill="#a78bfa" font-size="7" font-family="Inter" font-weight="600">Coating Loss</text>
+
+                                    <!-- Weld / Structural -->
+                                    <rect x="185" y="190" width="42" height="18" rx="2" stroke="#34d399" stroke-width="2" fill="rgba(52,211,153,0.08)" stroke-dasharray="4 2">
+                                        <animate attributeName="stroke-opacity" values="1;0.4;1" dur="2.2s" repeatCount="indefinite"/>
+                                    </rect>
+                                    <text x="188" y="188" fill="#34d399" font-size="7" font-family="Inter" font-weight="600">Weld Integrity</text>
+
+                                    <!-- Cross-Verification badge -->
+                                    <rect x="320" y="125" width="70" height="16" rx="3" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+                                    <text x="327" y="136" fill="#38bdf8" font-size="7" font-family="Inter" font-weight="700">✓ Cross-Verified</text>
+
+                                    <!-- Scan line -->
+                                    <line x1="95" x2="395" y1="160" y2="160" stroke="#0ea5e9" stroke-width="1" opacity="0.4">
+                                        <animate attributeName="y1" values="150;210;150" dur="3s" repeatCount="indefinite"/>
+                                        <animate attributeName="y2" values="150;210;150" dur="3s" repeatCount="indefinite"/>
+                                        <animate attributeName="opacity" values="0.5;0.1;0.5" dur="3s" repeatCount="indefinite"/>
+                                    </line>
+                                </g>
+
+                                <!-- Surveyor / Inspector figure -->
+                                <g transform="translate(30, 150)">
+                                    <!-- Body -->
+                                    <rect x="0" y="22" width="18" height="30" rx="3" fill="#1e40af"/>
+                                    <!-- Head -->
+                                    <circle cx="9" cy="14" r="8" fill="#fbbf24"/>
+                                    <!-- Hard hat -->
+                                    <path d="M1 12 Q9 4 17 12" fill="#f59e0b" stroke="#d97706" stroke-width="0.5"/>
+                                    <rect x="0" y="11" width="18" height="3" rx="1" fill="#f59e0b"/>
+                                    <!-- Arms holding clipboard -->
+                                    <rect x="18" y="28" width="14" height="10" rx="1" fill="#f8fafc" stroke="#94a3b8" stroke-width="0.5"/>
+                                    <!-- Clipboard lines -->
+                                    <line x1="20" y1="31" x2="30" y2="31" stroke="#64748b" stroke-width="0.5"/>
+                                    <line x1="20" y1="33" x2="28" y2="33" stroke="#64748b" stroke-width="0.5"/>
+                                    <line x1="20" y1="35" x2="29" y2="35" stroke="#64748b" stroke-width="0.5"/>
+                                    <!-- Arm -->
+                                    <rect x="16" y="26" width="6" height="3" rx="1" fill="#1e40af"/>
+                                    <!-- Legs -->
+                                    <rect x="2" y="52" width="6" height="14" rx="2" fill="#1e3a5f"/>
+                                    <rect x="10" y="52" width="6" height="14" rx="2" fill="#1e3a5f"/>
+                                    <!-- Boots -->
+                                    <rect x="1" y="64" width="8" height="4" rx="1" fill="#374151"/>
+                                    <rect x="9" y="64" width="8" height="4" rx="1" fill="#374151"/>
+                                </g>
                             </svg>
-                            <p class="text-gray-400 mt-4 text-sm">AI-Powered Defect Detection</p>
+
+                            <div class="flex items-center justify-between mt-3">
+                                <span class="text-xs text-gray-400 font-medium">AI-Powered Defect Detection &amp; Survey</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                                    <span class="text-xs text-green-400">Live Analysis</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Wave bottom -->
+    <div class="absolute bottom-0 left-0 right-0">
+        <svg viewBox="0 0 1440 80" fill="none" class="w-full"><path d="M0 40C240 80 480 0 720 40C960 80 1200 0 1440 40V80H0V40Z" fill="#f9fafb"/></svg>
+    </div>
 </section>
 
-<!-- Statistics Section -->
-<section class="bg-white py-12 -mt-8 relative z-20">
+<!-- ════════════ STATS STRIP ════════════ -->
+<section class="bg-gray-50 -mt-1 relative z-20 py-8">
     <div class="max-w-4xl mx-auto px-4">
-        <div class="glass-effect bg-white shadow-xl rounded-2xl p-8 grid grid-cols-2 gap-6">
+        <div class="bg-white shadow-xl rounded-2xl p-8 grid grid-cols-2 md:grid-cols-5 gap-6 reveal-scale">
             <div class="text-center">
-                <div class="text-4xl font-bold text-maritime-600">{{ total_inspections }}</div>
+                <div class="text-4xl font-bold text-maritime-600" data-count="{{ total_inspections }}">0</div>
                 <div class="text-gray-500 text-sm mt-1">Inspections Completed</div>
             </div>
             <div class="text-center">
-                <div class="text-4xl font-bold text-maritime-600">8</div>
-                <div class="text-gray-500 text-sm mt-1">Defect Categories</div>
+                <div class="text-4xl font-bold text-maritime-600">2</div>
+                <div class="text-gray-500 text-sm mt-1">Detection Methods</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-maritime-600">9</div>
+                <div class="text-gray-500 text-sm mt-1">Assessment Categories</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-maritime-600">VLM</div>
+                <div class="text-gray-500 text-sm mt-1">Cross-Verification</div>
+            </div>
+            <div class="text-center">
+                <div class="text-4xl font-bold text-maritime-600">PDF</div>
+                <div class="text-gray-500 text-sm mt-1">Report Export</div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Features Section -->
+<!-- ════════════ FEATURES / DEFECT CATEGORIES ════════════ -->
 <section class="py-20 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
+        <div class="text-center mb-16 reveal">
             <h2 class="text-3xl font-bold text-hull-dark mb-4">Comprehensive Defect Detection</h2>
             <p class="text-gray-600 max-w-2xl mx-auto">
-                Our AI system identifies and classifies multiple types of hull defects 
-                with professional-grade accuracy.
+                Our system identifies and classifies multiple types of hull defects
+                using both supervised and unsupervised detection methods.
             </p>
         </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Corrosion -->
-            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-red-500">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Severe Corrosion -->
+            <div class="card-hover bg-white rounded-xl p-6 shadow-md border-t-4 border-red-500 reveal" data-delay="0">
                 <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
+                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Corrosion</h3>
-                <p class="text-gray-600 text-sm">Detects and classifies corrosion severity: severe, moderate, and mild deterioration.</p>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Severe Corrosion</h3>
+                <p class="text-gray-600 text-sm">Deep material loss and structural weakening requiring immediate intervention or steel renewal.</p>
             </div>
-            
-            <!-- Paint Damage -->
-            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-orange-500">
+
+            <!-- Moderate Corrosion -->
+            <div class="card-hover bg-white rounded-xl p-6 shadow-md border-t-4 border-orange-500 reveal" data-delay="100">
                 <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                    <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
-                    </svg>
+                    <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Paint Damage</h3>
-                <p class="text-gray-600 text-sm">Identifies coating system failures, peeling, blistering, and paint deterioration.</p>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Moderate Corrosion</h3>
+                <p class="text-gray-600 text-sm">Visible surface degradation with measurable material loss. Warrants monitoring and planned maintenance.</p>
             </div>
-            
-            <!-- Fouling -->
-            <div class="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border-t-4 border-green-500">
+
+            <!-- Mild Corrosion -->
+            <div class="card-hover bg-white rounded-xl p-6 shadow-md border-t-4 border-yellow-500 reveal" data-delay="200">
+                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Mild Corrosion</h3>
+                <p class="text-gray-600 text-sm">Early-stage rust and surface oxidation. Typically treatable with spot-blasting and coating touch-up.</p>
+            </div>
+
+            <!-- Paint Damage -->
+            <div class="card-hover bg-white rounded-xl p-6 shadow-md border-t-4 border-purple-500 reveal" data-delay="300">
+                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Coating Failure</h3>
+                <p class="text-gray-600 text-sm">Peeling, cracking, blistering, or chalking of anti-corrosive and anti-fouling coating systems.</p>
+            </div>
+
+            <!-- Marine Fouling -->
+            <div class="card-hover bg-white rounded-xl p-6 shadow-md border-t-4 border-green-500 reveal" data-delay="400">
                 <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
-                    </svg>
+                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/></svg>
                 </div>
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Marine Fouling</h3>
-                <p class="text-gray-600 text-sm">Detects barnacles, algae, and biological growth affecting hull performance.</p>
+                <p class="text-gray-600 text-sm">Barnacles, algae, and biological growth increasing drag and fuel consumption. Assessed per IMO guidelines.</p>
             </div>
-            
+
+            <!-- Good Condition -->
+            <div class="card-hover bg-white rounded-xl p-6 shadow-md border-t-4 border-emerald-500 reveal" data-delay="500">
+                <div class="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Good Condition</h3>
+                <p class="text-gray-600 text-sm">Hull surface is intact with no significant defects. Coating system is functional and within service limits.</p>
+            </div>
         </div>
     </div>
 </section>
 
-<!-- How It Works Section -->
+<!-- ════════════ HOW IT WORKS ════════════ -->
 <section id="how-it-works" class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
+        <div class="text-center mb-16 reveal">
             <h2 class="text-3xl font-bold text-hull-dark mb-4">How It Works</h2>
             <p class="text-gray-600 max-w-2xl mx-auto">
                 Three simple steps to get a comprehensive maritime inspection report.
             </p>
         </div>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Step 1 -->
-            <div class="relative">
+            <div class="relative reveal" data-delay="0">
                 <div class="bg-gradient-to-br from-maritime-500 to-maritime-700 rounded-2xl p-8 text-white h-full">
-                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full 
-                                flex items-center justify-center text-xl font-bold shadow-lg">1</div>
+                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full flex items-center justify-center text-xl font-bold shadow-lg">1</div>
                     <div class="pt-4">
-                        <svg class="w-16 h-16 mb-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
+                        <svg class="w-14 h-14 mb-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         <h3 class="text-xl font-semibold mb-3">Upload Image</h3>
-                        <p class="text-maritime-100">
-                            Upload a high-resolution image of the ship hull section you want to inspect.
-                        </p>
+                        <p class="text-maritime-100 text-sm">Upload a high-resolution photograph of the ship hull section you want to inspect.</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Step 2 -->
-            <div class="relative">
+
+            <div class="relative reveal" data-delay="150">
                 <div class="bg-gradient-to-br from-maritime-600 to-maritime-800 rounded-2xl p-8 text-white h-full">
-                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full 
-                                flex items-center justify-center text-xl font-bold shadow-lg">2</div>
+                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full flex items-center justify-center text-xl font-bold shadow-lg">2</div>
                     <div class="pt-4">
-                        <svg class="w-16 h-16 mb-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                        </svg>
+                        <svg class="w-14 h-14 mb-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                         <h3 class="text-xl font-semibold mb-3">AI Analysis</h3>
-                        <p class="text-maritime-100">
-                            YOLO detects defects and VLM analyzes the image like a professional marine surveyor.
-                        </p>
+                        <p class="text-maritime-100 text-sm">YOLO segmentation or Eigen Tree detects defects while a Vision-Language Model analyzes findings like a marine surveyor.</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Step 3 -->
-            <div class="relative">
+
+            <div class="relative reveal" data-delay="300">
                 <div class="bg-gradient-to-br from-maritime-700 to-hull-dark rounded-2xl p-8 text-white h-full">
-                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full 
-                                flex items-center justify-center text-xl font-bold shadow-lg">3</div>
+                    <div class="absolute -top-4 -left-4 w-12 h-12 bg-white text-maritime-600 rounded-full flex items-center justify-center text-xl font-bold shadow-lg">3</div>
                     <div class="pt-4">
-                        <svg class="w-16 h-16 mb-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
+                        <svg class="w-14 h-14 mb-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         <h3 class="text-xl font-semibold mb-3">Get Report</h3>
-                        <p class="text-maritime-100">
-                            Receive a detailed maritime inspection report with findings and recommendations.
-                        </p>
+                        <p class="text-maritime-100 text-sm">Receive a detailed survey report with severity assessment, findings, and maintenance recommendations. Export as PDF.</p>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="text-center mt-12">
-            <a href="{% url 'inspection:upload' %}" 
-               class="inline-flex items-center space-x-2 bg-maritime-600 hover:bg-maritime-700 
-                      text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all 
-                      duration-300 transform hover:scale-105 shadow-lg">
-                <span>Start Your Inspection</span>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                </svg>
+
+        <div class="text-center mt-12 reveal">
+            <a href="{% url 'inspection:upload' %}" class="inline-flex items-center gap-2 bg-maritime-600 hover:bg-maritime-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
+                Start Your Inspection
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
             </a>
         </div>
     </div>
 </section>
 
-<!-- Recent Inspections -->
-{% if recent_inspections %}
+<!-- ════════════ DETECTION METHODS ════════════ -->
 <section class="py-20 bg-gray-50">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12 reveal">
+            <h2 class="text-3xl font-bold text-hull-dark mb-4">Dual Detection Pipeline</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">Choose from two complementary detection approaches based on your needs.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="card-hover bg-white rounded-2xl p-8 shadow-md border border-blue-100 reveal-left">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">YOLO Segmentation</h3>
+                        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Supervised &bull; Deep Learning</span>
+                    </div>
+                </div>
+                <p class="text-gray-600 text-sm leading-relaxed">Instance segmentation model trained on hull corrosion datasets. Outputs pixel-level masks and bounding boxes with per-defect confidence scores. Best for precise localization of known defect types.</p>
+            </div>
+            <div class="card-hover bg-white rounded-2xl p-8 shadow-md border border-green-100 reveal-right">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800">Eigen Tree</h3>
+                        <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">Unsupervised &bull; Classical</span>
+                    </div>
+                </div>
+                <p class="text-gray-600 text-sm leading-relaxed">Unsupervised pruned decision-tree hierarchy using eigen decomposition (Chliveros et al., 2023). Requires no training data, making it ideal for novel hull conditions and out-of-distribution scenarios.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ════════════ RECENT INSPECTIONS ════════════ -->
+{% if recent_inspections %}
+<section class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center mb-10">
+        <div class="flex justify-between items-center mb-10 reveal">
             <h2 class="text-3xl font-bold text-hull-dark">Recent Inspections</h2>
-            <a href="{% url 'inspection:history' %}" class="text-maritime-600 hover:text-maritime-700 font-medium">
-                View All →
+            <a href="{% url 'inspection:history' %}" class="text-maritime-600 hover:text-maritime-700 font-medium text-sm flex items-center gap-1">
+                View All
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
         </div>
-        
+
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for inspection in recent_inspections %}
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-                <div class="h-48 bg-gray-200 relative">
+            <div class="card-hover bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 reveal" data-delay="{{ forloop.counter0|add:forloop.counter0 }}00">
+                <div class="h-48 bg-gray-200 relative overflow-hidden">
                     {% if inspection.annotated_image %}
-                    <img src="{{ inspection.annotated_image.url }}" alt="Inspection" 
-                         class="w-full h-full object-cover">
+                    <img src="{{ inspection.annotated_image.url }}" alt="Inspection" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
                     {% elif inspection.original_image %}
-                    <img src="{{ inspection.original_image.url }}" alt="Original" 
-                         class="w-full h-full object-cover">
+                    <img src="{{ inspection.original_image.url }}" alt="Original" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105">
                     {% else %}
-                    <div class="w-full h-full flex items-center justify-center text-gray-400">
-                        No Image
-                    </div>
+                    <div class="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
                     {% endif %}
                     <div class="absolute top-3 right-3">
-                        <span class="severity-{{ inspection.overall_severity }} px-3 py-1 rounded-full text-xs font-semibold uppercase">
+                        <span class="severity-{{ inspection.overall_severity }} px-3 py-1 rounded-full text-xs font-semibold uppercase shadow-sm">
                             {{ inspection.overall_severity|default:"pending" }}
                         </span>
                     </div>
                 </div>
                 <div class="p-5">
-                    <div class="text-sm text-gray-500 mb-2">
-                        {{ inspection.created_at|date:"M d, Y H:i" }}
-                    </div>
+                    <div class="text-sm text-gray-500 mb-2">{{ inspection.created_at|date:"M d, Y H:i" }}</div>
+                    {% if inspection.vessel_name %}<p class="font-medium text-gray-800 mb-1 truncate">{{ inspection.vessel_name }}</p>{% endif %}
                     <div class="flex justify-between items-center">
-                        <div>
-                            <span class="text-lg font-semibold text-gray-800">
-                                {{ inspection.detection_count }} Defects
-                            </span>
-                        </div>
-                        <a href="{% url 'inspection:results' inspection.id %}" 
-                           class="text-maritime-600 hover:text-maritime-700 font-medium text-sm">
-                            View Report →
+                        <span class="text-xs font-mono text-gray-400 truncate max-w-[10rem]" title="{{ inspection.id }}">ID: {{ inspection.id|truncatechars:13 }}</span>
+                        <a href="{% url 'inspection:results' inspection.id %}" class="text-maritime-600 hover:text-maritime-700 font-medium text-sm flex items-center gap-1">
+                            View Report <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </a>
                     </div>
                 </div>
@@ -276,24 +429,16 @@
 </section>
 {% endif %}
 
-<!-- CTA Section -->
-<section class="py-20 gradient-maritime">
-    <div class="max-w-4xl mx-auto text-center px-4">
-        <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Inspect Your Vessel?
-        </h2>
-        <p class="text-xl text-maritime-200 mb-8">
-            Get instant AI-powered hull analysis with professional-grade reporting.
-        </p>
-        <a href="{% url 'inspection:upload' %}" 
-           class="inline-flex items-center space-x-2 bg-white hover:bg-gray-100 
-                  text-maritime-700 px-10 py-4 rounded-xl text-lg font-semibold 
-                  transition-all duration-300 transform hover:scale-105 shadow-xl">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-            </svg>
-            <span>Upload Hull Image</span>
+<!-- ════════════ CTA ════════════ -->
+<section class="py-20 gradient-maritime relative overflow-hidden">
+    <div class="absolute inset-0 opacity-[0.03]" style="background-image:radial-gradient(circle,#fff 1px,transparent 1px);background-size:30px 30px"></div>
+    <div class="max-w-4xl mx-auto text-center px-4 relative z-10">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-6 reveal">Ready to Inspect Your Vessel?</h2>
+        <p class="text-xl text-maritime-200 mb-8 reveal" data-delay="100">Upload hull images, get detailed inspection reports, and download them as PDF.</p>
+        <a href="{% url 'inspection:upload' %}"
+           class="reveal inline-flex items-center gap-3 bg-white hover:bg-gray-100 text-maritime-700 px-10 py-4 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl" data-delay="200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            Upload Hull Image
         </a>
     </div>
 </section>

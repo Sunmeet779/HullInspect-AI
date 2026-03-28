@@ -1,34 +1,26 @@
 """
 Vision-Language Model (VLM) Service for Maritime Inspection Reports — v2
 
-Optimized for Mac M1. Supports multiple Ollama backends ranked by quality:
+3-stage pipeline with automatic fallback:
 
-1. **minicpm-v** (RECOMMENDED for M1 8GB)
-   - 3B params, excellent vision understanding, fast on M1
-   - Install: ollama pull minicpm-v
+  Stage 1 — GitHub Models API (GPT-4o-mini) [PRIMARY]
+    - Best report quality, vision-capable LLM
+    - Free with GitHub account (rate-limited)
+    - Requires: GITHUB_TOKEN in .env
 
-2. **llava:7b** (Good fallback)
-   - 7B params, decent vision, runs on M1 8GB
-   - Install: ollama pull llava
+  Stage 2 — Ollama local vision model [FALLBACK]
+    - Runs on Mac M1, no internet needed
+    - Supported models: minicpm-v, llava, moondream
+    - Install: ollama pull minicpm-v && ollama serve
 
-3. **llava:13b** (Best quality if you have 16GB RAM)
-   - 13B params, best analysis quality
-   - Install: ollama pull llava:13b
-
-4. **moondream** (Lightest option for 8GB RAM)
-   - 1.8B params, fast but less detailed
-   - Install: ollama pull moondream
-
-Why Ollama + local models?
-- Free, no API costs
-- Runs entirely on your Mac M1
-- No internet dependency for inference
-- Privacy: images never leave your machine
+  Stage 3 — Template-based report [ALWAYS AVAILABLE]
+    - Structured report from detection data only
+    - No AI narrative, but always works
 
 Usage:
-    1. Install Ollama: brew install ollama
-    2. Pull model: ollama pull minicpm-v
-    3. Start Ollama: ollama serve
+    1. Add GITHUB_TOKEN to .env (get at github.com/settings/tokens)
+    2. Run: python manage.py runserver
+    3. Upload hull image → report is generated automatically
 """
 import os
 os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
@@ -41,71 +33,158 @@ from typing import Dict, List, Tuple, Optional
 from PIL import Image
 import io
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load .env for GitHub Models API credentials
+load_dotenv()
 
 
 class VLMReportGenerator:
     """
     VLM service for generating maritime inspection reports.
     
-    Optimized for Mac M1 with Ollama backends.
+    3-stage pipeline with automatic fallback:
+      1. GitHub Models API (GPT-4o-mini) — primary, best quality
+      2. Ollama local vision model — fallback if API unavailable
+      3. Template-based report — always works, no AI narrative
+    
     Uses segmentation detection results (area-based severity).
     """
     
     # Ranked list of models to try (best → lightest)
     PREFERRED_MODELS = ['minicpm-v', 'llava', 'llava:13b', 'moondream', 'bakllava']
     
-    # Enhanced maritime surveyor prompt — tuned for corrosion segmentation data
-    INSPECTION_PROMPT = """You are an experienced Class A Marine Surveyor with 20+ years of hull inspection experience. You are examining a ship hull image with AI-assisted corrosion detection results.
+    # Enhanced maritime surveyor prompt — holistic full-image analysis
+    INSPECTION_PROMPT = """You are an experienced Class A Marine Surveyor with 20+ years of hull inspection experience, certified by a major Classification Society (Lloyd's Register / DNV / Bureau Veritas). You are examining a ship hull photograph.
 
-Analyze this hull image carefully and provide a professional assessment:
+CRITICAL INSTRUCTION — INDEPENDENT FULL-IMAGE ANALYSIS:
+You MUST first examine the ENTIRE image independently, using your own expert judgement, BEFORE considering the {detection_method} detection data provided below. The {detection_method} detection model is trained ONLY on corrosion and frequently produces FALSE POSITIVES — it may misidentify water, shadows, reflections, wet surfaces, marine growth, paint colour variations, or mechanical damage as "corrosion." You must critically evaluate every {detection_method}-detected region and state whether you agree or disagree with the detection.
 
-1. **Hull Condition Overview**: Describe the overall state of the hull surface visible in the image.
-2. **Corrosion Analysis**: Describe the type, pattern, and extent of any corrosion you observe (uniform, pitting, crevice, galvanic, etc.).
-3. **Coating Assessment**: Comment on the condition of the paint/anti-fouling coating.
-4. **Structural Concern Level**: Based on visible corrosion depth and spread, assess if structural integrity could be affected.
-5. **Environmental Factors**: Note any evidence of the operational environment (marine growth, waterline marks, etc.).
-6. **Recommended Actions**: Provide specific, actionable maintenance recommendations.
+Analyse the complete hull image and provide a professional assessment covering ALL of the following:
 
-Be precise, professional, and detailed. Reference specific areas of the image where you see issues."""
+1. **Hull Surface & Location Context**
+   - Identify the hull zone visible (flat bottom, bilge turn, boot-top, topside, waterline area, rudder/stern area)
+   - Describe the overall surface condition and which side of the vessel this likely represents
+   - Note the approximate extent of the area captured in the image
+
+2. **Independent Visual Assessment** (YOUR OWN OBSERVATIONS — look at the WHOLE image)
+   - Describe EVERYTHING you see in the image: surface condition, colours, textures, damage patterns
+   - Identify ALL types of damage or anomalies present — not just corrosion
+   - Specifically look for: mechanical damage (dents, gouges, impact marks, abrasion), structural deformation, weld issues, coating failures, fouling, AND corrosion
+   - If you see water, wet surfaces, reflections, or non-damage features — say so explicitly
+   - State clearly what the PRIMARY issue in this image is (corrosion, mechanical damage, coating failure, or other)
+
+3. **{detection_method} Detection Cross-Verification** (CRITICAL — evaluate each detection)
+   - For each {detection_method}-detected region, state whether you AGREE or DISAGREE that it shows corrosion
+   - If you DISAGREE: explain what the region actually shows (water, shadow, dent, paint, etc.)
+   - If detection confidence is below 60%, flag it as potentially unreliable
+   - Note any damage the {detection_method} model MISSED that you can see in the image
+   - Provide your own corrected assessment of actual corrosion extent (if different from {detection_method})
+
+4. **Corrosion Analysis** (ONLY if you confirm actual corrosion is present)
+   - Classify each corrosion type observed: uniform/general wastage, pitting, crevice, galvanic, weld-line/HAZ corrosion, waterline attack, groove/erosion-corrosion
+   - Estimate corrosion depth (surface rust only, moderate wastage, or deep/through-wall risk)
+   - Describe the corrosion pattern and distribution
+   - Assess whether corrosion appears active (fresh red/orange oxide) or stabilised (dark, layered scale)
+
+5. **Coating & Paint System Assessment**
+   - Identify the coating system layers where visible (anti-fouling, anti-corrosive primer, tie-coat, shop primer)
+   - Classify the paint failure mode: blistering, chalking, flaking, peeling, delamination, cracking, under-film corrosion
+   - Rate coating breakdown using DIN EN ISO 4628 scale if possible (Ri 0-5 for rust per Part 3, Re 0-5 for blistering per Part 2)
+   - Note any colour changes suggesting coating chemical breakdown or UV degradation
+
+6. **Mechanical Damage & Other Defects** (report if visible, explicitly state "not observed" if absent)
+   - Mechanical damage: dents, gouges, impact marks, abrasion — estimate depth and extent
+   - Weld defects: undercut, porosity, misalignment, cracks along weld seams
+   - Structural deformation: buckling, distortion, unfair plating
+   - Marine growth / fouling: type (barnacles, algae, slime), extent, location
+   - Cathodic protection: condition of visible anodes (wasted, missing, painted over)
+
+7. **Plate Thickness & Structural Concern**
+   - Based on visible damage, estimate whether plate diminution likely exceeds 20% of original thickness
+   - Identify specific areas where ultrasonic thickness (UT) measurements are recommended
+   - Assess risk to structural integrity (frames, longitudinals, shell plating)
+   - Note if any areas appear close to Class minimum thickness allowance
+
+8. **Progression Risk & Root Cause**
+   - Assess whether the deterioration is accelerating, stable, or recently initiated
+   - Identify likely root causes (coating breakdown, cathodic protection failure, galvanic couple, mechanical impact, operational environment)
+   - Estimate time since last maintenance based on visible coating/surface state
+
+9. **Recommended Actions** (with priority and timeline)
+   - Immediate safety actions (if any)
+   - Areas requiring UT thickness gauging — specify exact locations
+   - Coating repair specification (surface prep standard, primer, intermediate, topcoat)
+   - Whether dry-docking is required or if underwater repair is feasible
+   - Classification Society notification requirements (if applicable per IACS UR Z10.1)
+   - Follow-up inspection schedule
+
+IMPORTANT INSTRUCTIONS:
+- LOOK AT THE ENTIRE IMAGE — do NOT focus only on {detection_method}-highlighted regions
+- Be specific about WHERE in the image you see each issue (top-left, center, along weld line, etc.)
+- Use proper maritime and coating terminology throughout
+- If {detection_method} detection confidence is low (<60%), state clearly that the detection is unreliable
+- Distinguish between confirmed visual findings and what requires physical inspection
+- Do NOT blindly trust the {detection_method} detections — they are preliminary and error-prone
+- Do NOT repeat the detection data back verbatim — provide YOUR expert interpretation"""
 
     SEVERITY_CONTEXT_PROMPT = """
-AI Segmentation Detection Results:
-- Total corrosion regions detected: {num_regions}
-- Total corroded area: {total_area:.1f}% of inspected surface
-- Largest single corrosion region: {largest_area:.1f}%
-- AI-assessed severity: {severity}
+--- PRELIMINARY {{detection_method}} DETECTION DATA (requires your cross-verification) ---
+NOTE: The {{detection_method}} model is trained ONLY on corrosion and may produce false positives.
+Water, shadows, wet surfaces, paint variations, and mechanical damage are
+commonly misidentified as corrosion.
 
-Severity breakdown:
+- Total regions flagged by {{detection_method}}: {num_regions}
+- Total flagged area: {total_area:.1f}% of inspected surface
+- Largest single flagged region: {largest_area:.1f}%
+- {{detection_method}}-assessed severity (UNVERIFIED): {severity}
+
+{{detection_method}} severity breakdown (UNVERIFIED):
 {severity_breakdown}
 
-Use these quantitative measurements to support your visual assessment.
-Provide your independent expert opinion — you may agree or disagree with the AI severity rating."""
+YOUR TASK: Look at the COMPLETE image independently. Determine what is actually
+present. Agree or disagree with {{detection_method}} detections. Provide YOUR corrected assessment."""
 
     def __init__(
         self,
-        backend: str = "ollama",
         ollama_model: Optional[str] = None,  # Auto-detect best available
         ollama_url: str = "http://localhost:11434",
+        github_token: Optional[str] = None,
+        github_model: Optional[str] = None,
+        github_endpoint: Optional[str] = None,
         temperature: float = 0.3,
-        max_tokens: int = 2000,
+        max_tokens: int = 3000,
     ):
         """
         Initialize the VLM service.
         
         Args:
-            backend: 'ollama' (recommended)
             ollama_model: Ollama model name (None = auto-detect best available)
             ollama_url: Ollama API URL
+            github_token: GitHub PAT for Models API (loaded from .env if None)
+            github_model: GitHub Models model name (loaded from .env if None)
+            github_endpoint: GitHub Models endpoint URL (loaded from .env if None)
             temperature: Generation temperature (0.3 = focused/professional)
             max_tokens: Maximum generation tokens
         """
-        self.backend = backend
         self.ollama_url = ollama_url
         self.temperature = temperature
         self.max_tokens = max_tokens
         self._initialized = False
         
-        # Auto-detect best model if not specified
+        # GitHub Models config (from args or .env)
+        self.github_token = github_token or os.environ.get('GITHUB_TOKEN', '')
+        self.github_model = github_model or os.environ.get(
+            'GITHUB_MODELS_MODEL', 'gpt-4o-mini'
+        )
+        self.github_endpoint = github_endpoint or os.environ.get(
+            'GITHUB_MODELS_ENDPOINT', 'https://models.inference.ai.azure.com'
+        )
+        
+        # Track which backend generated the last report
+        self._model_used = 'template'
+        
+        # Auto-detect best Ollama model if not specified
         if ollama_model:
             self.ollama_model = ollama_model
         else:
@@ -177,40 +256,204 @@ Provide your independent expert opinion — you may agree or disagree with the A
         img.save(buffer, format='JPEG', quality=85)
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
     
+    def _call_github_models(
+        self,
+        image_path: str,
+        detections: List[Dict],
+        overall_severity: str,
+    ) -> Optional[str]:
+        """
+        Call GitHub Models API (GPT-4o-mini) with the image and detection context.
+        
+        Primary VLM backend — free with GitHub account, excellent vision quality.
+        Falls back gracefully on any error.
+        """
+        print(f"📡 Calling GitHub Models API ({self.github_model})...")
+        
+        # Encode image for the vision API
+        image_base64 = self._encode_image_base64(image_path)
+        ext = os.path.splitext(image_path)[1].lower().lstrip('.')
+        mime = {'jpg': 'jpeg', 'jpeg': 'jpeg', 'png': 'png', 'bmp': 'bmp'}.get(ext, 'jpeg')
+        
+        # Build severity context from detections
+        total_area = sum(d.get('area_percent', 0) for d in detections)
+        largest = max((d.get('area_percent', 0) for d in detections), default=0)
+        
+        sev_counts = {}
+        for d in detections:
+            s = d.get('severity', 'unknown')
+            if s not in sev_counts:
+                sev_counts[s] = {'count': 0, 'area': 0}
+            sev_counts[s]['count'] += 1
+            sev_counts[s]['area'] += d.get('area_percent', 0)
+        
+        breakdown = "\n".join(
+            f"  - {s.upper()}: {v['count']} region(s), {v['area']:.1f}% area"
+            for s, v in sev_counts.items()
+        ) or "  No detections"
+        
+        # Build the prompt
+        system_msg = (
+            "You are an experienced Class A Marine Surveyor certified by a major "
+            "Classification Society (Lloyd's Register / DNV / Bureau Veritas). You have "
+            "20+ years conducting hull condition surveys, dry-dock inspections, and "
+            "damage assessments. You write professional reports that follow IACS "
+            "Procedural Requirements and use DIN EN ISO 4628 coating condition standards. "
+            "Use formal maritime technical language. Structure your response with "
+            "numbered sections. Distinguish clearly between confirmed visual findings "
+            "and areas requiring physical verification (UT gauging, close-up, etc.).\n\n"
+            "CRITICAL: You must independently analyse the ENTIRE image using your own "
+            f"expert judgement. The {self._detection_method_name} detection model provided below is "
+            "preliminary and frequently produces FALSE POSITIVES — it can misidentify "
+            "water, shadows, wet surfaces, reflections, or mechanical damage as "
+            f"'corrosion'. You must cross-verify every {self._detection_method_name} detection and state whether "
+            "you agree or disagree. Identify ALL types of damage visible in the image, "
+            "not just corrosion."
+        )
+        
+        formatted_prompt = self.INSPECTION_PROMPT.format(detection_method=self._detection_method_name)
+        
+        user_prompt = f"""{formatted_prompt}
+
+--- PRELIMINARY {self._detection_method_name.upper()} DETECTION DATA (requires your cross-verification) ---
+NOTE: The {self._detection_method_name} model below is trained ONLY on corrosion detection
+and may produce false positives. Water, shadows, wet surfaces, paint variations, and
+mechanical damage are commonly misidentified as corrosion. Use your expert judgement.
+
+- Total regions flagged by {self._detection_method_name}: {len(detections)}
+- Total flagged area: {total_area:.1f}% of inspected surface
+- Largest single flagged region: {largest:.1f}%
+- {self._detection_method_name}-assessed severity (UNVERIFIED): {overall_severity.upper()}
+
+{self._detection_method_name} severity breakdown (UNVERIFIED):
+{breakdown}
+
+YOUR TASK: Look at the COMPLETE image. Determine what is actually present —
+corrosion, mechanical damage, water, paint issues, or other. Agree or disagree
+with each {self._detection_method_name} detection. Provide YOUR corrected assessment.
+If detection confidence is below 60%, flag the detection as unreliable.
+Keep the total response under 1200 words."""
+
+        # Call GitHub Models API (OpenAI-compatible endpoint)
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.github_token}",
+        }
+        
+        payload = {
+            "model": self.github_model,
+            "messages": [
+                {"role": "system", "content": system_msg},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/{mime};base64,{image_base64}",
+                                "detail": "high",
+                            },
+                        },
+                        {"type": "text", "text": user_prompt},
+                    ],
+                },
+            ],
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.github_endpoint}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60,
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                analysis = result["choices"][0]["message"]["content"].strip()
+                if analysis:
+                    print(f"✅ GitHub Models response received ({len(analysis)} chars)")
+                    return analysis
+                print("⚠️ GitHub Models returned empty response")
+            elif response.status_code == 401:
+                print("❌ GitHub token invalid or expired. Regenerate at github.com/settings/tokens")
+            elif response.status_code == 429:
+                print("❌ Rate limit exceeded. Falling back to next stage.")
+            else:
+                print(f"❌ GitHub Models API error {response.status_code}: {response.text[:200]}")
+        
+        except requests.exceptions.Timeout:
+            print("⚠️ GitHub Models request timed out (60s)")
+        except Exception as e:
+            print(f"⚠️ GitHub Models error: {e}")
+        
+        return None
+    
+    # Human-readable detection method names
+    DETECTION_METHOD_NAMES = {
+        'yolo_seg': 'YOLO11-Seg (Instance Segmentation)',
+        'eigen_tree': 'Pruned Eigen-Tree (Unsupervised Anomaly Detection)',
+    }
+
     def generate_report(
         self,
         image_path: str,
         detections: List[Dict],
         use_vlm: bool = True,
+        detection_method: str = 'yolo_seg',
     ) -> Tuple[str, str, str]:
         """
         Generate a maritime inspection report.
         
         Args:
             image_path: Path to the hull image
-            detections: Detection results from YOLOSegInferenceService
+            detections: Detection results from YOLO or EigenTree
             use_vlm: Whether to use VLM (falls back to template if False/unavailable)
+            detection_method: 'yolo_seg' or 'eigen_tree'
             
         Returns:
             Tuple of (report_text, report_html, overall_severity)
         """
+        # Store the detection method name for use in report sections
+        self._detection_method = detection_method
+        self._detection_method_name = self.DETECTION_METHOD_NAMES.get(
+            detection_method, detection_method
+        )
+        
         # Build detection context
         summary = self._build_detection_summary(detections)
         details = self._format_detection_details(detections)
         overall_severity = self._determine_overall_severity(detections)
         
-        # Try VLM generation
         vlm_analysis = None
-        if use_vlm and self.backend == 'ollama':
-            if self._check_ollama_available():
-                vlm_analysis = self._call_ollama(image_path, detections, overall_severity)
         
-        # Build final report
+        if use_vlm:
+            # Stage 1: GitHub Models API (GPT-4o-mini) — primary
+            if self.github_token:
+                vlm_analysis = self._call_github_models(
+                    image_path, detections, overall_severity
+                )
+                if vlm_analysis:
+                    self._model_used = f'GitHub Models {self.github_model}'
+            
+            # Stage 2: Ollama local vision model — fallback
+            if vlm_analysis is None:
+                if self._check_ollama_available():
+                    vlm_analysis = self._call_ollama(
+                        image_path, detections, overall_severity
+                    )
+                    if vlm_analysis:
+                        self._model_used = f'Ollama {self.ollama_model}'
+        
+        # Stage 3: Template fallback — always works
         if vlm_analysis:
             report_text = self._build_full_report(
                 vlm_analysis, summary, details, overall_severity
             )
         else:
+            self._model_used = 'template'
             report_text = self._build_template_report(summary, details, overall_severity)
         
         report_html = self._convert_to_html(report_text)
@@ -250,9 +493,10 @@ Provide your independent expert opinion — you may agree or disagree with the A
             largest_area=largest,
             severity=overall_severity.upper(),
             severity_breakdown=breakdown,
-        )
+        ).replace('{detection_method}', self._detection_method_name)
         
-        prompt = f"{self.INSPECTION_PROMPT}\n\n{context}"
+        formatted_prompt = self.INSPECTION_PROMPT.format(detection_method=self._detection_method_name)
+        prompt = f"{formatted_prompt}\n\n{context}"
         
         try:
             response = requests.post(
@@ -290,18 +534,24 @@ Provide your independent expert opinion — you may agree or disagree with the A
     
     def _build_detection_summary(self, detections: List[Dict]) -> str:
         """Build detection summary text."""
+        method_name = getattr(self, '_detection_method_name', 'AI Detection Model')
         if not detections:
-            return "No corrosion detected by the AI segmentation model."
+            return f"No regions flagged by {method_name}."
         
         total_area = sum(d['area_percent'] for d in detections)
         avg_conf = sum(d['confidence'] for d in detections) / len(detections)
         
         lines = [
-            f"Total Corrosion Regions: {len(detections)}",
-            f"Total Corroded Area: {total_area:.2f}% of inspected surface",
+            f"Detection Method: {method_name}",
+            f"Total Flagged Regions: {len(detections)}",
+            f"Total Flagged Area: {total_area:.2f}% of inspected surface",
             f"Average Detection Confidence: {avg_conf:.1%}",
             "",
-            "Severity Distribution (based on segmented area):",
+            f"NOTE: {method_name} is trained primarily on corrosion patterns.",
+            "Regions flagged below may include false positives (water, shadows, mechanical",
+            "damage, wet surfaces). See the Expert Visual Analysis for cross-verification.",
+            "",
+            "Severity Distribution (based on flagged area — requires verification):",
         ]
         
         sev_counts = {}
@@ -321,18 +571,22 @@ Provide your independent expert opinion — you may agree or disagree with the A
     
     def _format_detection_details(self, detections: List[Dict]) -> str:
         """Format detailed detection information."""
+        method_name = getattr(self, '_detection_method_name', 'AI Detection Model')
         if not detections:
-            return "No corrosion regions to report."
+            return f"No regions flagged by {method_name}."
         
         details = []
         for i, det in enumerate(detections, 1):
+            conf = det['confidence']
+            reliability = "LOW — may be false positive" if conf < 0.6 else "acceptable"
             detail = f"""
 Region #{i}:
-  Confidence: {det['confidence']:.1%}
-  Severity: {det['severity'].upper()}
-  Corroded Area: {det['area_percent']:.2f}% of image ({det.get('mask_pixels', 'N/A')} pixels)
+  Confidence: {conf:.1%} ({reliability})
+  AI-Assigned Severity: {det['severity'].upper()}
+  Flagged Area: {det['area_percent']:.2f}% of image ({det.get('mask_pixels', 'N/A')} pixels)
   Location: Center ({det['x_center']:.2f}, {det['y_center']:.2f})
-  Bounding Box: {det['width']:.1%} x {det['height']:.1%} of image"""
+  Bounding Box: {det['width']:.1%} x {det['height']:.1%} of image
+  ⚠ Cross-verify with Expert Visual Analysis above"""
             details.append(detail)
         
         return "\n".join(details)
@@ -377,24 +631,25 @@ Region #{i}:
 
 Document ID: AUTO-GENERATED
 Date: {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}
-Inspector: AI-Assisted Analysis System (YOLO11-Seg + {self.ollama_model})
-Method: Instance Segmentation (pixel-level corrosion mapping)
+Inspector: AI-Assisted Analysis System ({self._detection_method_name} + {self._model_used})
+Method: {self._detection_method_name} + Independent VLM Visual Analysis
 Classification: PRELIMINARY
 
 ================================================================================
-1. EXPERT VISUAL ANALYSIS (VLM: {self.ollama_model})
+1. VLM ANALYSIS ({self._model_used})
 ================================================================================
+(Independent full-image assessment — cross-verifies {self._detection_method_name} detections)
 
 {vlm_analysis}
 
 ================================================================================
-2. AI SEGMENTATION RESULTS
+2. {self._detection_method_name.upper()} RESULTS (Preliminary — Requires Cross-Verification)
 ================================================================================
 
 {detection_summary}
 
 ================================================================================
-3. DETAILED REGION ANALYSIS
+3. FLAGGED REGION DETAILS
 ================================================================================
 
 {detection_details}
@@ -403,16 +658,17 @@ Classification: PRELIMINARY
 4. CONDITION ASSESSMENT
 ================================================================================
 
-Overall Severity Level: **{overall_severity.upper()}**
+AI-Assessed Severity Level: **{overall_severity.upper()}**
+(Refer to Section 1 for expert-verified assessment — AI severity may differ)
 
 {self._get_severity_description(overall_severity)}
 
 Methodology Notes:
-- Corrosion area measured via pixel-level instance segmentation (not bounding boxes)
-- Area percentages represent actual corroded pixels, not rectangular approximations
-- Severity is based on total corroded surface area
-- VLM provides qualitative expert-level contextual analysis
-- Combined AI assessment should be verified by qualified marine surveyor
+- Detection model ({self._detection_method_name}) is trained primarily on corrosion patterns
+- Flagged areas may include false positives (water, shadows, mechanical damage, wet surfaces)
+- Area percentages represent model-flagged pixels, not necessarily confirmed corrosion
+- The VLM Analysis (Section 1) provides independent cross-verification
+- Combined assessment should be verified by qualified marine surveyor
 
 ================================================================================
 5. SAFETY & ENVIRONMENTAL CONTEXT
@@ -423,11 +679,12 @@ Environmental Factors:
 - Marine growth presence indicates extended waterline exposure
 - Paint/coating damage accelerates underlying corrosion development
 - Pitting corrosion poses higher structural risk than uniform surface corrosion
+- Mechanical damage (dents, gouges) may compromise coating integrity
 
 Safety Considerations:
-- Corroded areas exceeding 5% warrant immediate structural assessment
+- Areas with confirmed corrosion exceeding 5% warrant structural assessment
 - Pitting corrosion may be deeper than surface appearance suggests
-- Crevice corrosion around fittings requires close manual inspection
+- Mechanical damage sites should be inspected for coating breach and incipient corrosion
 - Proper ventilation and safety equipment required during any repair work
 
 ================================================================================
@@ -440,20 +697,22 @@ Safety Considerations:
 7. ANALYSIS METHODOLOGY
 ================================================================================
 
-Detection Model: YOLO11-Seg (Instance Segmentation)
-- Pixel-accurate corrosion boundary detection
-- Precise area measurement from segmentation masks
-- Trained on MaVeCoDD maritime corrosion dataset
+Detection Model: {self._detection_method_name}
+- {'Trained on MaVeCoDD maritime corrosion dataset' if self._detection_method == 'yolo_seg' else 'Unsupervised anomaly detection using eigenvalue decomposition'}
+- {'Pixel-accurate instance segmentation with mask-based area measurement' if self._detection_method == 'yolo_seg' else 'Colour-space anomaly detection with decision-tree pruning'}
+- May produce false positives for water, shadows, wet surfaces, reflections
 
-Vision-Language Model: Ollama ({self.ollama_model})
+Vision-Language Model: {self._model_used}
+- Independent full-image analysis (not limited to AI-flagged regions)
+- Cross-verifies AI detections — identifies false positives
+- Detects damage types the segmentation model cannot (mechanical, structural, fouling)
 - Professional maritime inspection narrative
-- Contextual analysis beyond what detection models capture
-- Runs locally on Mac M1 — no cloud dependency
 
-Cross-Verification:
-- Segmentation model provides quantitative measurements
-- VLM provides qualitative expert-level analysis
-- Combined approach offers comprehensive assessment
+Cross-Verification Approach:
+- VLM independently analyses the complete image before considering AI data
+- Each AI-flagged region is verified: confirmed, disputed, or reclassified
+- Damage types missed by the segmentation model are identified by VLM
+- Final assessment integrates both AI quantitative data and expert visual analysis
 
 ================================================================================
                               END OF REPORT
@@ -475,8 +734,8 @@ Cross-Verification:
 
 Document ID: AUTO-GENERATED
 Date: {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}
-Inspector: AI-Assisted Analysis System (YOLO11-Seg)
-Method: Instance Segmentation (pixel-level corrosion mapping)
+Inspector: AI-Assisted Analysis System ({self._detection_method_name})
+Method: {self._detection_method_name}
 Classification: PRELIMINARY
 
 Note: VLM visual analysis unavailable. Install Ollama and a vision model
@@ -512,8 +771,8 @@ Overall Severity Level: **{overall_severity.upper()}**
 5. ANALYSIS NOTES
 ================================================================================
 
-- Detection uses YOLO11-Seg instance segmentation for precise area measurement
-- Corrosion boundaries are pixel-accurate (not bounding-box approximations)
+- Detection uses {self._detection_method_name} for area measurement
+- {'Corrosion boundaries are pixel-accurate (not bounding-box approximations)' if self._detection_method == 'yolo_seg' else 'Anomaly regions identified via eigenvalue-based colour space analysis'}
 - For enhanced reports with expert narrative, configure Ollama VLM
 - Final assessment should always be verified by a qualified marine surveyor
 
@@ -602,50 +861,108 @@ REPAIR PRIORITY: ROUTINE MAINTENANCE""",
         return recommendations.get(severity, recommendations['mild'])
     
     def _convert_to_html(self, report_text: str) -> str:
-        """Convert plain text report to HTML."""
+        """Convert report text to clean HTML.
+        
+        The VLM (GPT-4o-mini) returns markdown in the analysis section.
+        We split by ===== dividers (which separate our report sections),
+        then render each section's content through python-markdown.
+        """
         import html as html_module
+        import re
         
-        escaped = html_module.escape(report_text)
+        try:
+            import markdown
+            has_markdown = True
+        except ImportError:
+            has_markdown = False
         
-        lines = escaped.split('\n')
-        html_lines = []
+        def render(text):
+            """Render a block of text to HTML."""
+            text = text.strip()
+            if not text:
+                return ''
+            if has_markdown:
+                # Ensure blank line before markdown headings (# ## ### ####)
+                # GPT-4o-mini sometimes omits them, which breaks parsing
+                text = re.sub(r'(?<!\n\n)(^|\n)(#{1,6} )', r'\1\n\2', text)
+                # Ensure blank line before list items that follow a paragraph
+                text = re.sub(r'(?<!\n\n)(^|\n)(- \*\*)', r'\1\n\2', text)
+                return markdown.markdown(text, extensions=['tables', 'sane_lists'])
+            # Fallback: basic conversion
+            escaped = html_module.escape(text)
+            # Handle **bold**
+            escaped = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', escaped)
+            return '<p>' + escaped.replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
         
-        for line in lines:
-            if line.startswith('=' * 10):
+        # ── Split report by ===== divider lines into raw blocks ──
+        # A ===== line is anything with 10+ consecutive '='
+        blocks = re.split(r'\n *={10,} *\n', report_text)
+        
+        # Each pair of ===== lines produces: [preamble, title, content, title, content, ...]
+        # But since the report starts with ====, the first block is usually empty.
+        # We'll scan blocks and classify them as title-blocks vs content-blocks.
+        
+        sections = []  # list of (title, content_html)
+        
+        # Report structure: ===title=== content ===title=== content ...
+        # After splitting by ====, short blocks (single line, ALL-CAPS) are titles;
+        # longer blocks are content.
+        
+        pending_title = None
+        for block in blocks:
+            block = block.strip()
+            if not block:
                 continue
             
-            # Bold markers
-            while '**' in line:
-                line = line.replace('**', '<strong>', 1)
-                line = line.replace('**', '</strong>', 1)
+            # Is this a section title? (1-2 lines, mostly uppercase, < 120 chars)
+            lines = block.split('\n')
+            is_title = (
+                len(lines) <= 2
+                and len(block) < 120
+                and sum(1 for c in block if c.isupper()) > len(block.replace(' ', '')) * 0.4
+            )
             
-            # Bullet points
-            if line.strip().startswith('•'):
-                line = f'<li>{line.strip()[1:].strip()}</li>'
-            elif line.strip().startswith('- '):
-                line = f'<li>{line.strip()[2:].strip()}</li>'
-            
-            # Numbered items
-            stripped = line.strip()
-            if stripped and stripped[0].isdigit() and '.' in stripped[:3]:
-                line = f'<li>{stripped[2:].strip()}</li>'
-            
-            # Section headers
-            section_keywords = [
-                'EXPERT VISUAL ANALYSIS', 'AI SEGMENTATION', 'DETAILED REGION',
-                'CONDITION ASSESSMENT', 'SAFETY', 'RECOMMENDATIONS',
-                'ANALYSIS METHODOLOGY', 'ANALYSIS NOTES',
-                'MARITIME HULL INSPECTION',
-            ]
-            if any(kw in line for kw in section_keywords):
-                line = f'<h2 class="report-section">{line.strip()}</h2>'
-            
-            html_lines.append(line)
+            if is_title:
+                # Save any previous pending title with no content
+                if pending_title is not None:
+                    sections.append((pending_title, ''))
+                pending_title = block
+            else:
+                title = pending_title or ''
+                sections.append((title, block))
+                pending_title = None
         
-        content = '\n'.join(html_lines)
+        if pending_title is not None:
+            sections.append((pending_title, ''))
         
-        return f"""
-<div class="inspection-report">
-    <pre class="report-content">{content}</pre>
-</div>
-"""
+        # ── Build HTML from sections ──
+        html_parts = []
+        
+        for title, content in sections:
+            title_upper = title.upper()
+            content_html = render(content)
+            
+            if 'MARITIME HULL INSPECTION REPORT' in title_upper:
+                html_parts.append(
+                    '<div class="text-center border-b-2 border-maritime-200 pb-4 mb-6">'
+                    f'<h1 class="text-xl font-bold text-maritime-800 tracking-wide">{html_module.escape(title)}</h1>'
+                    f'<div class="mt-3 text-sm text-gray-600 leading-relaxed">{content_html}</div></div>'
+                )
+            elif 'END OF REPORT' in title_upper:
+                html_parts.append(
+                    '<div class="text-center border-t-2 border-maritime-200 pt-4 mt-6">'
+                    f'<p class="text-xs text-gray-400 uppercase tracking-widest">{html_module.escape(title)}</p></div>'
+                )
+            elif title:
+                html_parts.append(
+                    '<div class="report-section mb-6">'
+                    f'<h2 class="text-base font-bold text-maritime-700 border-b border-gray-200 pb-2 mb-3 uppercase tracking-wide">{html_module.escape(title)}</h2>'
+                    f'<div class="text-sm text-gray-800 leading-relaxed prose prose-sm max-w-none">{content_html}</div>'
+                    '</div>'
+                )
+            elif content_html:
+                html_parts.append(
+                    f'<div class="text-sm text-gray-700 leading-relaxed mb-4 prose prose-sm max-w-none">{content_html}</div>'
+                )
+        
+        return f'<div class="inspection-report space-y-2">{"".join(html_parts)}</div>'

@@ -197,11 +197,12 @@ def process_inspection(inspection: InspectionReport):
             severity=det.get('severity')
         )
     
-    # Step 2: Generate VLM Report (v2 — segmentation-aware)
+    # Step 2: Generate VLM Report (v2 — method-aware)
     vlm_service = VLMReportGenerator()
     report_content, report_html, severity = vlm_service.generate_report(
         image_path=image_path,
-        detections=detections
+        detections=detections,
+        detection_method=method,
     )
     
     inspection.report_content = report_content

@@ -9,8 +9,9 @@ context via prompt engineering.
 """
 
 import json
+import re
 import requests
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
 
@@ -23,19 +24,53 @@ class InspectionChatbot:
     defect trends, and maintenance recommendations.
     """
 
-    SYSTEM_PROMPT = """You are HullInspect AI Assistant — a knowledgeable maritime inspection chatbot.
+    # UUID regex to detect when user asks about a specific report
+    _UUID_RE = re.compile(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        re.IGNORECASE,
+    )
+    # Also match short IDs (first 8 chars)
+    _SHORT_ID_RE = re.compile(r"\b[0-9a-f]{8}\b", re.IGNORECASE)
+
+    SYSTEM_PROMPT = """You are HullInspect Assistant — a knowledgeable maritime inspection chatbot.
 You help surveyors understand hull inspection results, compare vessel conditions, and provide maintenance guidance.
+
+IMPORTANT — DEFECT CATEGORIES:
+The inspection system assesses ALL of the following — NOT only corrosion:
+1. Corrosion (pitting, uniform, galvanic, crevice) — rated by severity
+2. Mechanical Damage — dents, gouges, scratches, impact marks
+3. Coating / Paint Condition — peeling, blistering, chalking, delamination
+4. Weld Integrity — cracks, undercuts, porosity, misalignment
+5. Marine Fouling — barnacles, algae, biological growth
+6. Structural Deformation — buckling, warping, misalignment
+7. Water / Environmental Damage — waterline effects, tidal erosion
+
+The detection model (YOLO11-Seg or Pruned Eigen-Tree) is trained primarily on corrosion,
+so it may flag non-corrosion defects as "corrosion". Each inspection report includes a VLM
+cross-verification section (Section 1) that independently re-evaluates every flagged region.
+Always refer to the VLM analysis for the corrected assessment when answering about defect types.
+
+IMPORTANT — REPORT IDs vs VESSEL NAMES:
+- Each inspection has a unique Report ID (UUID like 27b32422-8f59-...).
+- Some inspections have a vessel name, many do not (shown as "Unknown" or empty).
+- Report IDs are NOT vessel IDs. Do NOT call them "Vessel ID".
+- When listing or comparing inspections, use "Report ID" or "Inspection" — never "Vessel ID".
+- Multiple inspections with no vessel name are separate inspections of different (unknown) vessels,
+  NOT multiple inspections of the same vessel.
 
 RULES:
 - Answer based ONLY on the inspection data provided in the context below.
+- If a FOCUSED REPORT is provided, answer primarily from that full report.
 - If no relevant data exists for a question, say so clearly.
 - Use professional maritime terminology.
 - Be concise but thorough. Use bullet points for lists.
-- When comparing vessels, present data in a clear structured format.
+- When comparing inspections, present data in a clear structured format.
 - Include specific numbers (detection counts, severity, area percentages) when available.
-- If the surveyor asks about a vessel not in the data, say it hasn't been inspected yet.
+- When discussing defects, note whether the VLM cross-verification confirmed or overrode the detection label.
+- Do NOT assume every flagged region is corrosion — check the VLM analysis for the true finding.
+- Quote specific sections of the report when relevant.
+- Only report information that is actually present in the data. If a field is missing, say "not available" — do NOT guess or hallucinate values.
 
-CONTEXT — All completed inspections in the system:
 {context}
 """
 
@@ -43,7 +78,7 @@ CONTEXT — All completed inspections in the system:
         self,
         ollama_url: str = "http://localhost:11434",
         ollama_model: str = "phi3:mini",
-        max_context_inspections: int = 50,
+        max_context_inspections: int = 15,
     ):
         self.ollama_url = ollama_url
         self.ollama_model = ollama_model
@@ -60,59 +95,126 @@ CONTEXT — All completed inspections in the system:
             pass
         return False
 
-    def get_inspection_context(self) -> str:
+    # ------------------------------------------------------------------
+    # ID extraction helpers
+    # ------------------------------------------------------------------
+
+    def _extract_report_ids(self, text: str) -> List[str]:
         """
-        Build a text summary of all completed inspections for the LLM context.
-        Imports Django models inside the function so the module can be imported
-        without Django being fully configured.
+        Extract inspection IDs from user text.
+        Supports full UUIDs and short (8-char) prefixes.
+        Returns a list of full UUID strings matched from the DB.
         """
         from inspection.models import InspectionReport
 
+        ids: List[str] = []
+
+        # Full UUIDs
+        for match in self._UUID_RE.finditer(text):
+            ids.append(match.group(0))
+
+        # Short IDs — look up in DB
+        if not ids:
+            for match in self._SHORT_ID_RE.finditer(text):
+                short = match.group(0).lower()
+                found = InspectionReport.objects.filter(
+                    id__startswith=short, status="completed"
+                ).values_list("id", flat=True)[:1]
+                for fid in found:
+                    ids.append(str(fid))
+
+        return ids
+
+    # ------------------------------------------------------------------
+    # Context building
+    # ------------------------------------------------------------------
+
+    def get_inspection_context(self, focused_ids: Optional[List[str]] = None) -> str:
+        """
+        Build a text summary of all completed inspections for the LLM context.
+
+        If *focused_ids* is provided, the FULL report content of those inspections
+        is included under a "FOCUSED REPORT" header, and only a condensed one-line
+        inventory is given for other inspections. This prevents hallucination when
+        the user asks about a specific report.
+        """
+        from inspection.models import InspectionReport
+
+        # When focused, we need fewer other inspections (inventory only)
+        limit = self.max_context_inspections if not focused_ids else 50
         inspections = InspectionReport.objects.filter(status="completed").order_by(
             "-created_at"
-        )[: self.max_context_inspections]
+        )[:limit]
 
         if not inspections:
             return "No inspections have been completed yet."
 
+        focused_set = set(str(fid).lower() for fid in (focused_ids or []))
         lines: List[str] = []
-        lines.append(f"Total completed inspections: {inspections.count()}\n")
 
-        # Group by vessel
-        vessel_groups: Dict[str, list] = {}
+        # ── Focused report(s) — full content ──────────────────────────
+        if focused_set:
+            for insp in inspections:
+                if str(insp.id).lower() in focused_set:
+                    lines.append("=" * 72)
+                    lines.append("FOCUSED REPORT  (answer primarily from this)")
+                    lines.append("=" * 72)
+                    lines.append(f"Inspection ID: {insp.id}")
+                    lines.append(f"Vessel: {insp.vessel_name or 'Unknown'}")
+                    lines.append(f"Date: {insp.created_at.strftime('%Y-%m-%d %H:%M')}")
+                    lines.append(f"Method: {insp.get_detection_method_display()}")
+                    lines.append(f"Overall Severity: {(insp.overall_severity or 'N/A').upper()}")
+                    lines.append(f"Defects found: {insp.detection_count}")
+                    lines.append("")
+                    # Full report — include everything
+                    if insp.report_content:
+                        lines.append(insp.report_content)
+                    lines.append("=" * 72)
+                    lines.append("")
+
+        # ── Inventory of all inspections ──────────────────────────────
+        # List each inspection individually (not grouped by vessel, since
+        # most have no vessel name and grouping causes confusion).
+        lines.append(f"INSPECTION INVENTORY ({inspections.count()} completed):\n")
+
         for insp in inspections:
-            vname = insp.vessel_name or "Unknown Vessel"
-            vessel_groups.setdefault(vname, []).append(insp)
+            is_focused = str(insp.id).lower() in focused_set
+            vessel_label = insp.vessel_name if insp.vessel_name else "(no vessel name)"
 
-        for vessel, insps in vessel_groups.items():
-            lines.append(f"═══ Vessel: {vessel} ({len(insps)} inspection(s)) ═══")
-            for insp in insps:
-                lines.append(f"  Inspection ID: {str(insp.id)[:8]}")
-                lines.append(f"  Date: {insp.created_at.strftime('%Y-%m-%d %H:%M')}")
-                lines.append(f"  Method: {insp.get_detection_method_display()}")
-                lines.append(f"  Severity: {(insp.overall_severity or 'N/A').upper()}")
-                lines.append(f"  Defects found: {insp.detection_count}")
+            # Detection area summary
+            area_str = ""
+            sev_str = ""
+            if insp.yolo_detections:
+                severity_counts: Dict[str, int] = {}
+                total_area = 0.0
+                for det in insp.yolo_detections:
+                    sev = det.get("severity", "unknown")
+                    severity_counts[sev] = severity_counts.get(sev, 0) + 1
+                    total_area += det.get("area_percent", 0)
+                sev_str = ", ".join(f"{s}: {c}" for s, c in severity_counts.items())
+                area_str = f"  |  Total flagged area: {total_area:.2f}%"
 
-                # Summarise detections
-                if insp.yolo_detections:
-                    severity_counts: Dict[str, int] = {}
-                    total_area = 0.0
-                    for det in insp.yolo_detections:
-                        sev = det.get("severity", "unknown")
-                        severity_counts[sev] = severity_counts.get(sev, 0) + 1
-                        total_area += det.get("area_percent", 0)
-                    sev_str = ", ".join(
-                        f"{s}: {c}" for s, c in severity_counts.items()
-                    )
-                    lines.append(f"  Severity breakdown: {sev_str}")
-                    lines.append(f"  Total corroded area: {total_area:.2f}%")
+            lines.append(
+                f"Report {insp.id}  |  Vessel: {vessel_label}  |  "
+                f"{insp.created_at.strftime('%Y-%m-%d %H:%M')}  |  "
+                f"Method: {insp.get_detection_method_display()}  |  "
+                f"Severity: {(insp.overall_severity or 'N/A').upper()}  |  "
+                f"Defects: {insp.detection_count}"
+                f"{area_str}"
+            )
+            if sev_str:
+                lines.append(f"  Severity breakdown: {sev_str}")
 
-                # Short snippet of the text report
-                if insp.report_content:
-                    snippet = insp.report_content[:400].replace("\n", " ").strip()
-                    lines.append(f"  Report excerpt: {snippet}...")
+            if is_focused:
+                lines.append("  ↑ Full report included above")
+            elif not focused_set and insp.report_content:
+                # Include excerpt only in general mode
+                snippet = insp.report_content[:800].replace("\n", " ").strip()
+                if len(insp.report_content) > 800:
+                    snippet += " [truncated]"
+                lines.append(f"  Excerpt: {snippet}")
 
-                lines.append("")  # blank line between inspections
+            lines.append("")  # blank line between inspections
 
         return "\n".join(lines)
 
@@ -137,8 +239,20 @@ CONTEXT — All completed inspections in the system:
         str
             The assistant's response text.
         """
-        # Build context from database
-        context = self.get_inspection_context()
+        # Extract report IDs the user is asking about
+        focused_ids = self._extract_report_ids(user_message)
+
+        # Also scan recent conversation history for IDs (user may reference
+        # an ID in an earlier message and then ask follow-up questions)
+        if not focused_ids and conversation_history:
+            for msg in reversed(conversation_history[-6:]):
+                if msg.get("role") == "user":
+                    focused_ids = self._extract_report_ids(msg.get("content", ""))
+                    if focused_ids:
+                        break
+
+        # Build context — full report for focused IDs, short for rest
+        context = self.get_inspection_context(focused_ids=focused_ids or None)
         system_msg = self.SYSTEM_PROMPT.format(context=context)
 
         # Build messages list
@@ -150,6 +264,9 @@ CONTEXT — All completed inspections in the system:
 
         messages.append({"role": "user", "content": user_message})
 
+        # Increase context window when a full report is included
+        num_ctx = 8192 if focused_ids else 4096
+
         # Call Ollama
         try:
             r = requests.post(
@@ -159,11 +276,12 @@ CONTEXT — All completed inspections in the system:
                     "messages": messages,
                     "stream": False,
                     "options": {
-                        "temperature": 0.4,
-                        "num_predict": 1024,
+                        "temperature": 0.3,
+                        "num_predict": 1500,
+                        "num_ctx": num_ctx,
                     },
                 },
-                timeout=120,
+                timeout=180,
             )
 
             if r.status_code == 200:

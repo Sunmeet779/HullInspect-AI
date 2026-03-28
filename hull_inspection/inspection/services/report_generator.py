@@ -192,21 +192,15 @@ class PDFReportGenerator:
         # Full Report Content
         story.append(PageBreak())
         story.append(Paragraph("Detailed Inspection Report", heading_style))
+        story.append(Spacer(1, 12))
         
         if inspection.report_content:
-            # Split into paragraphs
-            paragraphs = inspection.report_content.split('\n\n')
-            for para in paragraphs:
-                if para.strip():
-                    # Handle section headers
-                    if para.strip().startswith('='):
-                        continue
-                    if any(x in para.upper() for x in ['GENERAL DESCRIPTION', 'SUMMARY', 
-                                                        'RECOMMENDATIONS', 'ASSESSMENT']):
-                        story.append(Paragraph(para.strip(), heading_style))
-                    else:
-                        story.append(Paragraph(para.strip(), body_style))
-                    story.append(Spacer(1, 6))
+            story.extend(
+                self._markdown_to_reportlab(
+                    inspection.report_content,
+                    heading_style, body_style, styles
+                )
+            )
         else:
             story.append(Paragraph("No detailed report available.", body_style))
         
@@ -237,6 +231,121 @@ class PDFReportGenerator:
         
         return output_path
     
+    # ------------------------------------------------------------------
+    # Markdown → ReportLab conversion
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _markdown_to_reportlab(text, heading_style, body_style, styles):
+        """Convert markdown-formatted report text to ReportLab flowable elements."""
+        import re
+        from reportlab.platypus import Paragraph, Spacer, HRFlowable
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.enums import TA_LEFT
+        from reportlab.lib import colors
+
+        subheading_style = ParagraphStyle(
+            'PDFSubHeading',
+            parent=heading_style,
+            fontSize=12,
+            spaceBefore=14,
+            spaceAfter=6,
+        )
+
+        bullet_style = ParagraphStyle(
+            'PDFBullet',
+            parent=body_style,
+            leftIndent=20,
+            firstLineIndent=0,
+            spaceBefore=2,
+            spaceAfter=2,
+        )
+
+        sub_bullet_style = ParagraphStyle(
+            'PDFSubBullet',
+            parent=bullet_style,
+            leftIndent=40,
+        )
+
+        def _bold(s):
+            """Replace **text** with <b>text</b> for ReportLab."""
+            return re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', s)
+
+        def _escape(s):
+            """Escape XML-sensitive chars that aren't already tags."""
+            s = s.replace('&', '&amp;')
+            # Preserve <b> / </b> we injected
+            s = s.replace('<b>', '\x00B').replace('</b>', '\x00b')
+            s = s.replace('<', '&lt;').replace('>', '&gt;')
+            s = s.replace('\x00B', '<b>').replace('\x00b', '</b>')
+            return s
+
+        elements = []
+        for line in text.split('\n'):
+            stripped = line.strip()
+
+            # blank line → small spacer
+            if not stripped:
+                elements.append(Spacer(1, 4))
+                continue
+
+            # skip ==== dividers
+            if re.match(r'^=+$', stripped):
+                elements.append(Spacer(1, 8))
+                continue
+
+            # horizontal rules: --- or ***
+            if re.match(r'^(\*{3,}|-{3,})$', stripped):
+                elements.append(Spacer(1, 4))
+                elements.append(HRFlowable(
+                    width="100%", thickness=0.5, color=colors.lightgrey
+                ))
+                elements.append(Spacer(1, 4))
+                continue
+
+            # ### Heading 3
+            m = re.match(r'^###\s+(.+)', stripped)
+            if m:
+                elements.append(Spacer(1, 10))
+                elements.append(Paragraph(_escape(_bold(m.group(1))), heading_style))
+                continue
+
+            # #### Heading 4
+            m = re.match(r'^####\s+(.+)', stripped)
+            if m:
+                elements.append(Spacer(1, 6))
+                elements.append(Paragraph(_escape(_bold(m.group(1))), subheading_style))
+                continue
+
+            # Numbered list: 1. item
+            m = re.match(r'^(\d+)\.\s+(.+)', stripped)
+            if m:
+                elements.append(Paragraph(
+                    _escape(_bold(f"{m.group(1)}. {m.group(2)}")),
+                    bullet_style
+                ))
+                continue
+
+            # Sub-bullet:   - item (indented)
+            if line.startswith('  ') and stripped.startswith('- '):
+                elements.append(Paragraph(
+                    _escape(_bold(f"  \u2022 {stripped[2:]}")),
+                    sub_bullet_style
+                ))
+                continue
+
+            # Bullet: - item or * item
+            if stripped.startswith('- ') or stripped.startswith('* '):
+                elements.append(Paragraph(
+                    _escape(_bold(f"\u2022 {stripped[2:]}")),
+                    bullet_style
+                ))
+                continue
+
+            # Regular paragraph
+            elements.append(Paragraph(_escape(_bold(stripped)), body_style))
+
+        return elements
+
     def generate_simple_report(self, inspection) -> str:
         """
         Generate a simpler text-based PDF when reportlab is not available.
@@ -289,7 +398,7 @@ class PDFReportGenerator:
     <p><strong>Total Defects:</strong> {inspection.detection_count}</p>
     
     <h2>Detailed Report</h2>
-    <pre>{inspection.report_content or 'No report available.'}</pre>
+    <div>{getattr(inspection, 'report_html', '') or inspection.report_content or 'No report available.'}</div>
     
     <hr>
     <p style="color: #718096; font-size: 12px; text-align: center;">
