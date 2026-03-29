@@ -53,6 +53,11 @@ Download from [ollama.com](https://ollama.com/) or:
 ```bash
 # macOS
 brew install ollama
+
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Windows — download from https://ollama.com/download
 ```
 
 Then pull the Phi-3 Mini model:
@@ -104,7 +109,8 @@ python manage.py migrate
 Create a `.env` file in the `hull_inspection/` directory (or copy the example):
 
 ```bash
-cp .env.example .env
+cp .env.example .env        # macOS / Linux
+# copy .env.example .env    # Windows
 ```
 
 Then edit `.env` with your API keys:
