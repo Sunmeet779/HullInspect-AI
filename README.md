@@ -1,93 +1,220 @@
-# Research Project
+# 🚢 HullInspect — Maritime Hull Defect Detection & Reporting
 
+A web-based system for detecting and reporting hull defects from inspection images.
 
+---
 
-## Getting started
+## Table of Contents
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- [Prerequisites](#prerequisites)
+- [Clone the Repository](#clone-the-repository)
+- [Setup](#setup)
+- [Environment Variables](#environment-variables)
+- [Run the Server](#run-the-server)
+- [Project Structure](#project-structure)
+- [Troubleshooting](#troubleshooting)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
+## Prerequisites
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+Make sure the following are installed before you start:
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| **Python** | 3.10+ | Runtime |
+| **Git LFS** | 3.0+ | Large files (model weights, images) |
+| **Ollama** | 0.1.0+ | Local LLM for chatbot |
+
+### Install Git LFS
+
+Git LFS is **required** — the repo stores model weights (`.pt`) and images via LFS. Without it you'll get pointer files instead of actual data.
+
+```bash
+# macOS
+brew install git-lfs
+
+# Ubuntu / Debian
+sudo apt install git-lfs
+
+# Windows — download from https://git-lfs.com
+```
+
+After installing, run once:
+
+```bash
+git lfs install
+```
+
+### Install Ollama
+
+Download from [ollama.com](https://ollama.com/) or:
+
+```bash
+# macOS
+brew install ollama
+```
+
+Then pull the Phi-3 Mini model:
+
+```bash
+ollama pull phi3:mini
+```
+
+---
+
+## Clone the Repository
+
+```bash
+git clone git@collaborating.tuhh.de:cvv4692/research-project.git
+cd research-project
+```
+
+> **Note:** If you cloned before installing Git LFS, run `git lfs pull` to download the actual files.
+
+---
+
+## Setup
+
+### 1. Create a virtual environment
+
+```bash
+cd hull_inspection
+python -m venv venv
+source venv/bin/activate   # macOS / Linux
+# venv\Scripts\activate    # Windows
+```
+
+### 2. Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Run database migrations
+
+```bash
+python manage.py migrate
+```
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the `hull_inspection/` directory (or copy the example):
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` with your API keys:
+
+```env
+# GPT-4o-mini via GitHub Models (primary VLM)
+GITHUB_TOKEN=your_github_token
+GITHUB_MODELS_ENDPOINT=https://models.inference.ai.azure.com
+GITHUB_MODELS_MODEL=gpt-4o-mini
+
+# Gemini 3.1 Flash Lite via OpenRouter (fallback VLM)
+OPENROUTER_API_KEY=your_openrouter_key
+```
+
+| Variable | Where to get it |
+|----------|----------------|
+| `GITHUB_TOKEN` | [github.com/settings/tokens](https://github.com/settings/tokens) — enable GitHub Models access |
+| `OPENROUTER_API_KEY` | [openrouter.ai/keys](https://openrouter.ai/keys) — free tier available |
+
+> **Without API keys the app still works** — it falls back to template-based reports. The keys enable AI-powered VLM analysis.
+
+---
+
+## Run the Server
+
+### 1. Start Ollama (for the chatbot)
+
+```bash
+ollama serve
+```
+
+Leave this running in a separate terminal.
+
+### 2. Start Django
+
+```bash
+cd hull_inspection
+python manage.py runserver 8090
+```
+
+Open **http://localhost:8090** in your browser.
+
+### What you can do
+
+- 📤 **Upload** hull images for inspection
+- 🔍 **Choose** detection method — YOLO11-Seg or Pruned Eigen-Tree
+- 🖼️ **View** annotated images with detected defect regions
+- 📋 **Read** structured survey reports (cross-verified by VLM)
+- 📄 **Download** PDF reports
+- 💬 **Chat** with the inspection assistant about past results
+- 📂 **Browse** inspection history
+
+---
+
+## Project Structure
 
 ```
-cd existing_repo
-git remote add origin https://collaborating.tuhh.de/cvv4692/research-project.git
-git branch -M main
-git push -uf origin main
+hull_inspection/
+├── manage.py                   # Django entry point
+├── requirements.txt            # Python dependencies
+├── .env                        # API keys (not committed)
+├── inspection/
+│   ├── models.py               # Database models
+│   ├── views.py                # Request handlers
+│   └── services/
+│       ├── yolo_seg_inference.py    # YOLO11-Seg detection
+│       ├── eigen_tree_service.py    # Eigen-Tree detection
+│       ├── vlm_service_v2.py        # VLM report generation
+│       ├── chatbot_service.py       # Ollama chatbot
+│       └── report_generator.py      # PDF generation
+├── ml_models/yolo/
+│   ├── weights/best_seg.pt     # Trained model weights (Git LFS)
+│   ├── train_seg.py            # Segmentation training script
+│   └── config/                 # Training configs
+├── datasets/                   # MaVeCoDD-derived datasets
+├── templates/                  # HTML templates (Tailwind CSS)
+└── media/                      # Uploaded images & generated reports
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](https://collaborating.tuhh.de/cvv4692/research-project/-/settings/integrations)
+## Troubleshooting
 
-## Collaborate with your team
+**Model weights are tiny text files (pointer files):**
+```bash
+git lfs pull
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+**Ollama chatbot not responding:**
+```bash
+# Make sure Ollama is running
+ollama serve
 
-## Test and Deploy
+# Verify the model is pulled
+curl http://localhost:11434/api/tags
+```
 
-Use the built-in continuous integration in GitLab.
+**VLM report says "Template fallback":**
+Check that `.env` has a valid `GITHUB_TOKEN`. Without it, the system still works but uses simpler report generation.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+**Port already in use:**
+```bash
+lsof -ti:8090 | xargs kill -9
+python manage.py runserver 8090
+```
 
-***
+**`ModuleNotFoundError`:**
+```bash
+pip install -r requirements.txt
+```
 
-# Editing this README
+---
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
