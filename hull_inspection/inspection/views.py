@@ -87,8 +87,11 @@ def api_upload_image(request):
         image_file = request.FILES['image']
         vessel_name = request.POST.get('vessel_name', '')
         detection_method = request.POST.get('detection_method', 'yolo_seg')
+        vlm_model = request.POST.get('vlm_model', 'gpt4o_mini')
         if detection_method not in ('yolo_seg', 'eigen_tree'):
             detection_method = 'yolo_seg'
+        if vlm_model not in ('gpt4o_mini', 'openrouter'):
+            vlm_model = 'gpt4o_mini'
         
         # Create inspection record
         inspection = InspectionReport.objects.create(
@@ -100,7 +103,7 @@ def api_upload_image(request):
         
         # Process the image (in production, use Celery for async)
         try:
-            process_inspection(inspection)
+            process_inspection(inspection, vlm_model=vlm_model)
         except Exception as e:
             inspection.status = 'failed'
             inspection.save()
@@ -151,11 +154,11 @@ def api_download_pdf(request, pk):
     return JsonResponse({'error': 'PDF not available'}, status=404)
 
 
-def process_inspection(inspection: InspectionReport):
+def process_inspection(inspection: InspectionReport, vlm_model: str = 'gpt4o_mini'):
     """
     Main processing pipeline for hull inspection.
     1. Run YOLO detection
-    2. Generate VLM report
+    2. Generate VLM report (using selected model)
     3. Create annotated image
     4. Update inspection record
     """
@@ -197,12 +200,13 @@ def process_inspection(inspection: InspectionReport):
             severity=det.get('severity')
         )
     
-    # Step 2: Generate VLM Report (v2 — method-aware)
+    # Step 2: Generate VLM Report (v2 — method-aware, model-selectable)
     vlm_service = VLMReportGenerator()
     report_content, report_html, severity = vlm_service.generate_report(
         image_path=image_path,
         detections=detections,
         detection_method=method,
+        vlm_model=vlm_model,
     )
     
     inspection.report_content = report_content

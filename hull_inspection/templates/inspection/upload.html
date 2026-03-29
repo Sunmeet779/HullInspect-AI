@@ -80,6 +80,43 @@
                         </div>
                     </div>
 
+                    <!-- Report Model -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Report Generation Model</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label class="relative cursor-pointer group">
+                                <input type="radio" name="vlm_model" value="gpt4o_mini" checked class="peer sr-only">
+                                <div class="border-2 border-gray-200 rounded-xl p-5 transition-all duration-200 peer-checked:border-maritime-500 peer-checked:bg-maritime-50/50 group-hover:border-maritime-300 group-hover:shadow-md">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-gray-800 text-sm">GPT-4o-mini</div>
+                                            <p class="text-xs text-gray-500 mt-1">GitHub Models API. Best report quality with detailed surveyor-level analysis and cross-verification.</p>
+                                            <span class="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Primary &bull; Recommended</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer group">
+                                <input type="radio" name="vlm_model" value="openrouter" class="peer sr-only">
+                                <div class="border-2 border-gray-200 rounded-xl p-5 transition-all duration-200 peer-checked:border-maritime-500 peer-checked:bg-maritime-50/50 group-hover:border-maritime-300 group-hover:shadow-md">
+                                    <div class="flex items-start gap-3">
+                                        <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                                            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-gray-800 text-sm">Gemini Flash 3.1 Lite</div>
+                                            <p class="text-xs text-gray-500 mt-1">Via OpenRouter. No regional restrictions, strong vision understanding with fast response times.</p>
+                                            <span class="inline-block mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Alternative &bull; OpenRouter</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Drop Zone -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Hull Image <span class="text-red-500">*</span></label>
@@ -221,10 +258,12 @@ document.addEventListener('DOMContentLoaded', function(){
             else processingStatus.textContent='Finalizing report...';
         },600);
 
+        const selectedVlm=document.querySelector('input[name="vlm_model"]:checked');
         const formData=new FormData();
         formData.append('image',imageInput.files[0]);
         formData.append('vessel_name',document.getElementById('vessel_name').value);
         formData.append('detection_method',selectedMethod?selectedMethod.value:'yolo_seg');
+        formData.append('vlm_model',selectedVlm?selectedVlm.value:'gpt4o_mini');
 
         try{
             const resp=await fetch('{% url "inspection:api_upload" %}',{method:'POST',body:formData});
