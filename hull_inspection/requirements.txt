@@ -24,7 +24,7 @@ torch>=2.0.0
 accelerate>=0.25.0
 einops>=0.7.0
 python-dotenv>=1.0.0    # Load .env for API tokens
-requests>=2.31.0        # API calls to GitHub Models
+requests>=2.31.0        # API calls to GitHub Models & OpenRouter
 
 # ===========================================
 # PDF Report Generation

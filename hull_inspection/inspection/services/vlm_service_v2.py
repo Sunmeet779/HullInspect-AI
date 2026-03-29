@@ -8,17 +8,17 @@ Vision-Language Model (VLM) Service for Maritime Inspection Reports — v2
     - Free with GitHub account (rate-limited)
     - Requires: GITHUB_TOKEN in .env
 
-  Stage 2 — Ollama local vision model [FALLBACK]
-    - Runs on Mac M1, no internet needed
-    - Supported models: minicpm-v, llava, moondream
-    - Install: ollama pull minicpm-v && ollama serve
+  Stage 2 — OpenRouter (Gemini Flash 3.1 Lite Preview) [FALLBACK]
+    - Unified API gateway, no regional restrictions
+    - OpenAI-compatible format, strong vision model
+    - Requires: OPENROUTER_API_KEY in .env
 
   Stage 3 — Template-based report [ALWAYS AVAILABLE]
     - Structured report from detection data only
-    - No AI narrative, but always works
+    - No VLM narrative, but always works
 
 Usage:
-    1. Add GITHUB_TOKEN to .env (get at github.com/settings/tokens)
+    1. Add GITHUB_TOKEN and OPENROUTER_API_KEY to .env
     2. Run: python manage.py runserver
     3. Upload hull image → report is generated automatically
 """
@@ -45,8 +45,8 @@ class VLMReportGenerator:
     
     3-stage pipeline with automatic fallback:
       1. GitHub Models API (GPT-4o-mini) — primary, best quality
-      2. Ollama local vision model — fallback if API unavailable
-      3. Template-based report — always works, no AI narrative
+      2. OpenRouter (Gemini Flash 3.1 Lite) — fallback, no regional restrictions
+      3. Template-based report — always works, no VLM narrative
     
     Uses segmentation detection results (area-based severity).
     """
@@ -147,11 +147,14 @@ present. Agree or disagree with {{detection_method}} detections. Provide YOUR co
 
     def __init__(
         self,
-        ollama_model: Optional[str] = None,  # Auto-detect best available
+        ollama_model: Optional[str] = None,  # Legacy — kept for Ollama fallback
         ollama_url: str = "http://localhost:11434",
         github_token: Optional[str] = None,
         github_model: Optional[str] = None,
         github_endpoint: Optional[str] = None,
+        openrouter_api_key: Optional[str] = None,
+        openrouter_model: str = 'google/gemini-3.1-flash-lite-preview',
+        openrouter_endpoint: str = 'https://openrouter.ai/api/v1',
         temperature: float = 0.3,
         max_tokens: int = 3000,
     ):
@@ -159,11 +162,14 @@ present. Agree or disagree with {{detection_method}} detections. Provide YOUR co
         Initialize the VLM service.
         
         Args:
-            ollama_model: Ollama model name (None = auto-detect best available)
+            ollama_model: Ollama model name (legacy fallback)
             ollama_url: Ollama API URL
             github_token: GitHub PAT for Models API (loaded from .env if None)
             github_model: GitHub Models model name (loaded from .env if None)
             github_endpoint: GitHub Models endpoint URL (loaded from .env if None)
+            openrouter_api_key: OpenRouter API key (loaded from .env if None)
+            openrouter_model: OpenRouter model ID (default: google/gemini-3.1-flash-lite-preview)
+            openrouter_endpoint: OpenRouter API base URL
             temperature: Generation temperature (0.3 = focused/professional)
             max_tokens: Maximum generation tokens
         """
@@ -181,8 +187,15 @@ present. Agree or disagree with {{detection_method}} detections. Provide YOUR co
             'GITHUB_MODELS_ENDPOINT', 'https://models.inference.ai.azure.com'
         )
         
+        # OpenRouter config (from args or .env)
+        self.openrouter_api_key = openrouter_api_key or os.environ.get('OPENROUTER_API_KEY', '')
+        self.openrouter_model = openrouter_model
+        self.openrouter_endpoint = openrouter_endpoint
+        
         # Track which backend generated the last report
         self._model_used = 'template'
+        self._detection_method = 'yolo_seg'
+        self._detection_method_name = self.DETECTION_METHOD_NAMES.get('yolo_seg', 'yolo_seg')
         
         # Auto-detect best Ollama model if not specified
         if ollama_model:
@@ -391,6 +404,132 @@ Keep the total response under 1200 words."""
         
         return None
     
+    def _call_openrouter(
+        self,
+        image_path: str,
+        detections: List[Dict],
+        overall_severity: str,
+    ) -> Optional[str]:
+        """
+        Call OpenRouter API with the image and detection context.
+        
+        Stage 2 fallback — OpenAI-compatible gateway, no regional restrictions.
+        Uses Gemini Flash 3.1 Lite Preview via OpenRouter.
+        """
+        print(f"📡 Calling OpenRouter ({self.openrouter_model})...")
+        
+        # Encode image to base64
+        image_base64 = self._encode_image_base64(image_path)
+        if not image_base64:
+            print("⚠️ Failed to encode image for OpenRouter")
+            return None
+        
+        # Build severity context from detections
+        total_area = sum(d.get('area_percent', 0) for d in detections)
+        largest = max((d.get('area_percent', 0) for d in detections), default=0)
+        
+        sev_counts = {}
+        for d in detections:
+            s = d.get('severity', 'unknown')
+            if s not in sev_counts:
+                sev_counts[s] = {'count': 0, 'area': 0}
+            sev_counts[s]['count'] += 1
+            sev_counts[s]['area'] += d.get('area_percent', 0)
+        
+        breakdown = "\n".join(
+            f"  - {s.upper()}: {v['count']} region(s), {v['area']:.1f}% area"
+            for s, v in sev_counts.items()
+        ) or "  No detections"
+        
+        # Build the prompt
+        formatted_prompt = self.INSPECTION_PROMPT.format(detection_method=self._detection_method_name)
+        
+        severity_context = self.SEVERITY_CONTEXT_PROMPT.replace(
+            '{{detection_method}}', self._detection_method_name
+        ).format(
+            num_regions=len(detections),
+            total_area=total_area,
+            largest_area=largest,
+            severity=overall_severity.upper(),
+            severity_breakdown=breakdown,
+        )
+        
+        full_user_prompt = f"{formatted_prompt}\n\n{severity_context}"
+        
+        # System message
+        system_msg = (
+            "You are an experienced Class A Marine Surveyor certified by a major "
+            "Classification Society (Lloyd's Register / DNV / Bureau Veritas). You have "
+            "20+ years conducting hull condition surveys, dry-dock inspections, and "
+            "damage assessments. You write professional reports that follow IACS "
+            "Procedural Requirements and use DIN EN ISO 4628 coating condition standards. "
+            "Use formal maritime technical language. Structure your response with "
+            "numbered sections. Distinguish clearly between confirmed visual findings "
+            "and areas requiring physical verification (UT gauging, close-up, etc.).\n\n"
+            "CRITICAL: You must independently analyse the ENTIRE image using your own "
+            f"expert judgement. The {self._detection_method_name} detection model provided below is "
+            "preliminary and frequently produces FALSE POSITIVES — it can misidentify "
+            "water, shadows, wet surfaces, reflections, or mechanical damage as "
+            f"'corrosion'. You must cross-verify every {self._detection_method_name} detection and state whether "
+            "you agree or disagree. Identify ALL types of damage visible in the image, "
+            "not just corrosion."
+        )
+        
+        # OpenAI-compatible payload
+        payload = {
+            "model": self.openrouter_model,
+            "messages": [
+                {"role": "system", "content": system_msg},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}",
+                                "detail": "high",
+                            },
+                        },
+                        {"type": "text", "text": full_user_prompt},
+                    ],
+                },
+            ],
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+        
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:8090",
+            "X-Title": "Hull Inspection System",
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.openrouter_endpoint}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=90,
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                analysis = data['choices'][0]['message']['content'].strip()
+                if analysis:
+                    print(f"✅ OpenRouter response received ({len(analysis)} chars)")
+                    return analysis
+                print("⚠️ OpenRouter returned empty content")
+            else:
+                print(f"⚠️ OpenRouter HTTP {response.status_code}: {response.text[:200]}")
+        
+        except requests.exceptions.Timeout:
+            print("⚠️ OpenRouter request timed out (90s)")
+        except Exception as e:
+            print(f"⚠️ OpenRouter error: {e}")
+        
+        return None
+    
     # Human-readable detection method names
     DETECTION_METHOD_NAMES = {
         'yolo_seg': 'YOLO11-Seg (Instance Segmentation)',
@@ -403,6 +542,7 @@ Keep the total response under 1200 words."""
         detections: List[Dict],
         use_vlm: bool = True,
         detection_method: str = 'yolo_seg',
+        vlm_model: str = 'gpt4o_mini',
     ) -> Tuple[str, str, str]:
         """
         Generate a maritime inspection report.
@@ -412,6 +552,7 @@ Keep the total response under 1200 words."""
             detections: Detection results from YOLO or EigenTree
             use_vlm: Whether to use VLM (falls back to template if False/unavailable)
             detection_method: 'yolo_seg' or 'eigen_tree'
+            vlm_model: 'gpt4o_mini' (GitHub Models) or 'openrouter' (OpenRouter)
             
         Returns:
             Tuple of (report_text, report_html, overall_severity)
@@ -430,15 +571,40 @@ Keep the total response under 1200 words."""
         vlm_analysis = None
         
         if use_vlm:
-            # Stage 1: GitHub Models API (GPT-4o-mini) — primary
-            if self.github_token:
-                vlm_analysis = self._call_github_models(
-                    image_path, detections, overall_severity
-                )
-                if vlm_analysis:
-                    self._model_used = f'GitHub Models {self.github_model}'
+            if vlm_model == 'openrouter':
+                # User chose OpenRouter as primary
+                if self.openrouter_api_key:
+                    vlm_analysis = self._call_openrouter(
+                        image_path, detections, overall_severity
+                    )
+                    if vlm_analysis:
+                        self._model_used = f'OpenRouter {self.openrouter_model}'
+                
+                # Fallback to GPT-4o-mini if OpenRouter fails
+                if vlm_analysis is None and self.github_token:
+                    vlm_analysis = self._call_github_models(
+                        image_path, detections, overall_severity
+                    )
+                    if vlm_analysis:
+                        self._model_used = f'GitHub Models {self.github_model}'
+            else:
+                # Default: GPT-4o-mini as primary
+                if self.github_token:
+                    vlm_analysis = self._call_github_models(
+                        image_path, detections, overall_severity
+                    )
+                    if vlm_analysis:
+                        self._model_used = f'GitHub Models {self.github_model}'
+                
+                # Fallback to OpenRouter if GPT-4o-mini fails
+                if vlm_analysis is None and self.openrouter_api_key:
+                    vlm_analysis = self._call_openrouter(
+                        image_path, detections, overall_severity
+                    )
+                    if vlm_analysis:
+                        self._model_used = f'OpenRouter {self.openrouter_model}'
             
-            # Stage 2: Ollama local vision model — fallback
+            # Last resort: Ollama local vision model
             if vlm_analysis is None:
                 if self._check_ollama_available():
                     vlm_analysis = self._call_ollama(

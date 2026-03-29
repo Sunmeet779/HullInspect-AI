@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.env.*
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Django
+db.sqlite3
+media/uploads/
+media/annotated/
+media/reports/
+
+# ML / YOLO
+runs/
+*.pt
+!hull_inspection/ml_models/yolo/weights/*.pt
+
+# Test files
+_test_*.py
+test_*.py
+
+# Byte-compiled
+*.pyc
+
+# Virtual env
+venv/
+.venv/
+env/
